@@ -91,16 +91,6 @@ void Scanner::scan(std::string &theToken,
   {
     auto action = myDriverTable.getAction(currentState, currentChar());
 
-    // TODO: remove
-    if (false)
-    {
-      std::cout << "Current state: " << currentState
-                << ", current char: '" << currentChar() << "' ("
-                << (int) currentChar() << "), "
-                << "action: " << static_cast<int>(action)
-                << std::endl;
-    }
-
     switch (action)
     {
       case DriverTable::Action::Error:

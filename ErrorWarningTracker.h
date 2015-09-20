@@ -38,6 +38,9 @@ class ErrorWarningTracker
 
   /**
    * Constructor.
+   *
+   * @param theFile
+   *          file being compiled
    */
   ErrorWarningTracker(const std::string &theFile);
 

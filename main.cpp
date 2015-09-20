@@ -32,7 +32,7 @@ int main(int argc, char **argv)
     {
       scanner.scan(token, tokenCode);
       std::cout << "Token: " << DriverTable::getDescription(tokenCode)
-                << " (" << token << ")" << std::endl;
+                << " (\"" << token << "\")" << std::endl;
     }
     while (tokenCode != DriverTable::TokenCode::EofSym);
   }

@@ -144,8 +144,6 @@ DriverTable::TokenCode DriverTable::lookupCode(State theCurrentState,
   validateState(theCurrentState);
   auto column = getColumn(theCharacter);
 
-  // TODO: throw exception if action isn't Halt*?
-
   return myTable[theCurrentState][column].myTokenCode;
 }
 
@@ -188,7 +186,7 @@ void DriverTable::populateState0() noexcept
   myTable[0][++charSet] = Entry(2, Action::MoveAppend);   // Digit
   myTable[0][++charSet] = Entry(3, Action::MoveNoAppend); // Blank
   myTable[0][++charSet] = Entry(Action::HaltAppend,       // +
-                                TokenCode::AssignOp);
+                                TokenCode::PlusOp);
   myTable[0][++charSet] = Entry(4, Action::MoveAppend);   // -
   myTable[0][++charSet] = Entry();                        // =
   myTable[0][++charSet] = Entry(6, Action::MoveAppend);   // :
