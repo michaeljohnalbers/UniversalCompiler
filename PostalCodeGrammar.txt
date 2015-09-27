@@ -1,0 +1,16 @@
+# Taken from https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_Form
+# Modified to suit class requirments
+
+<postal-address> -> <name-part> <street-address> <zip-part>
+<name-part> -> <personal-part> last-name <opt-suffix-part> EOL
+<name-part> -> <personal-part> <name-part>
+<personal-part> -> initial . 
+<personal-part> -> first-name
+<street-address> -> house-num street-name <opt-apt-num> EOL
+<zip-part> -> town-name , state-code ZIP-code EOL
+<opt-suffix-part> -> Sr. 
+<opt-suffix-part> -> Jr.
+<opt-suffix-part> -> roman-numeral
+<opt-suffix-part> -> 
+<opt-apt-num> -> apt-num
+<opt-apt-num> -> 
