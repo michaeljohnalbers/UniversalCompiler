@@ -1,7 +1,12 @@
 
 SRCS := DriverTable.cpp \
         ErrorWarningTracker.cpp \
+        GrammarAnalyzer.cpp \
+        NonTerminalSymbol.cpp \
+        Production.cpp \
         Scanner.cpp \
+        Symbol.cpp \
+        TerminalSymbol.cpp \
         main.cpp
 
 EXE := UniversalCompiler
