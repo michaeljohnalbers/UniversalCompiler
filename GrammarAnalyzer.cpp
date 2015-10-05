@@ -1,5 +1,5 @@
 /**
- * @file Production.cpp
+ * @file GrammarAnalyzer.cpp
  * @brief Implementation of GrammarAnalyzer class
  *
  * @author Michael Albers
@@ -10,6 +10,7 @@
 #include <system_error>
 
 #include "GrammarAnalyzer.h"
+#include "Lambda.h"
 #include "NonTerminalSymbol.h"
 #include "Production.h"
 #include "TerminalSymbol.h"
@@ -22,6 +23,75 @@ GrammarAnalyzer::GrammarAnalyzer(const std::string &theFileName)
   std::ifstream file;
   openFile(theFileName, file);
   parseFile(file);
+  calculateDerivesLambda();
+  fillFirstSets();
+  fillFollowSets();
+  generatePredictSets();
+}
+
+//*******************************************************
+// GrammarAnalyzer::calculateDerivesLambda
+//*******************************************************
+void GrammarAnalyzer::calculateDerivesLambda() noexcept
+{
+  bool anyChanges = false;
+  do
+  {
+    anyChanges = false;
+    for (auto production : myProductions)
+    {
+      bool rhsDerivesLambda = true;
+      auto rhs = production->getRHS();
+      for (auto rhsSymbol : rhs)
+      {
+        rhsDerivesLambda &= rhsSymbol->getDerivesLambda();
+      }
+
+      auto lhs = production->getLHS();
+      if (rhsDerivesLambda && ! lhs->getDerivesLambda())
+      {
+        anyChanges = true;
+        lhs->setDerivesLambda(true);
+      }
+    }
+  }
+  while (anyChanges);
+}
+
+//*******************************************************
+// GrammarAnalyzer::computeFirst
+//*******************************************************
+Symbol::SymbolSet GrammarAnalyzer::computeFirst(
+  const Symbol::SymbolList &theSymbols) const noexcept
+{
+  Symbol::SymbolSet firstSet;
+
+  auto lambda = Lambda::getInstance();
+
+  auto numberSymbols = theSymbols.size();
+  if (theSymbols.size() == 0)
+  {
+    firstSet.insert(lambda);
+  }
+  else
+  {
+    Symbol::SymbolSet symbolFirstSet;
+    Symbol::SymbolList::size_type ii = 0;
+    do
+    {
+      symbolFirstSet = theSymbols[ii]->getFirstSet();
+      firstSet.insert(symbolFirstSet.begin(), symbolFirstSet.end());
+      firstSet.erase(lambda);
+      ++ii;
+    }
+    while (ii < numberSymbols && containsLambda(symbolFirstSet));
+
+    if (ii == numberSymbols && containsLambda(symbolFirstSet))
+    {
+      firstSet.insert(lambda);
+    }
+  }
+  return firstSet;
 }
 
 //*******************************************************
@@ -50,23 +120,217 @@ void GrammarAnalyzer::consumeWhitespace(std::string &theLine)
 }
 
 //*******************************************************
+// GrammarAnalyzer::containsLambda
+//*******************************************************
+bool GrammarAnalyzer::containsLambda(const Symbol::SymbolSet &theSymbols)
+  noexcept
+{
+  return theSymbols.find(Lambda::getInstance()) != theSymbols.end();
+}
+
+//*******************************************************
+// GrammarAnalyzer::fillFirstSets
+//*******************************************************
+void GrammarAnalyzer::fillFirstSets() noexcept
+{
+  // This loop assumes the first sets haven't been changed from the empty
+  // set yet. (Code provided in class has an else case to set the first
+  // set to the empty list.)
+  for (auto nonTerminal : myNonTerminalSymbols)
+  {
+    if (nonTerminal->getDerivesLambda())
+    {
+      nonTerminal->addToFirstSet(Lambda::getInstance());
+    }
+  }
+
+  for (auto terminal : myTerminalSymbols)
+  {
+    terminal->addToFirstSet(terminal);
+  }
+
+  for (auto production : myProductions)
+  {
+    auto rhs = production->getRHS();
+    if (typeid(*rhs[0]) == typeid(TerminalSymbol))
+    {
+      production->getLHS()->addToFirstSet(rhs[0]);
+    }
+  }
+
+  bool anyChanges = true;
+  while (anyChanges)
+  {
+    anyChanges = false;
+    for (auto production : myProductions)
+    {
+      auto previousSize = production->getLHS()->getFirstSet().size();
+      Symbol::SymbolSet rhsFirstSet{computeFirst(production->getRHS())};
+
+      for (auto symbol : rhsFirstSet)
+      {
+        production->getLHS()->addToFirstSet(symbol);
+      }
+
+      auto afterSize = production->getLHS()->getFirstSet().size();
+
+      if (! anyChanges)
+      {
+        anyChanges = (previousSize != afterSize);
+      }
+    }
+  }
+}
+
+//*******************************************************
+// GrammarAnalyzer::fillFollowSets
+//*******************************************************
+void GrammarAnalyzer::fillFollowSets() noexcept
+{
+  // Quite the hack, but really no other way to do it.
+  for (auto symbol : myNonTerminalSymbols)
+  {
+    if (symbol->getName() == "<system goal>")
+    {
+      auto s = dynamic_cast<NonTerminalSymbol*>(symbol.get());
+      s->addToFollowSet(Lambda::getInstance());
+      break;
+    }
+  }
+
+  bool anyChanges = true;
+  while (anyChanges)
+  {
+    anyChanges = false;
+    for (auto production : myProductions)
+    {
+      auto rhs = production->getRHS();
+      for (uint32_t rhsIndex = 0; rhsIndex < rhs.size(); ++rhsIndex)
+      {
+        std::shared_ptr<Symbol> rhsSymbol = rhs[rhsIndex];
+        if (typeid(*rhsSymbol) == typeid(NonTerminalSymbol))
+        {
+          NonTerminalSymbol *nonTerminal =
+            dynamic_cast<NonTerminalSymbol*>(rhsSymbol.get());
+
+          auto previousSize = nonTerminal->getFollowSet().size();
+
+          Symbol::SymbolList remainingRhs;
+          for (auto jj = rhsIndex + 1; jj < rhs.size(); ++jj)
+          {
+            remainingRhs.push_back(rhs[jj]);
+          }
+
+          Symbol::SymbolSet firstSetOfRemaining{computeFirst(remainingRhs)};
+
+          auto lambdaIter = firstSetOfRemaining.find(Lambda::getInstance());
+          bool hasLambda = lambdaIter != firstSetOfRemaining.end();
+
+          if (hasLambda)
+          {
+            firstSetOfRemaining.erase(lambdaIter);
+          }
+
+          for (auto s : firstSetOfRemaining)
+          {
+            nonTerminal->addToFollowSet(s);
+          }
+
+          if (hasLambda)
+          {
+            NonTerminalSymbol *lhs =
+              dynamic_cast<NonTerminalSymbol*>(production->getLHS().get());
+            for (auto symbol : lhs->getFollowSet())
+            {
+              nonTerminal->addToFollowSet(symbol);
+            }
+          }
+
+          auto afterSize = nonTerminal->getFollowSet().size();
+
+          if (! anyChanges)
+          {
+            anyChanges = (previousSize != afterSize);
+          }
+        }
+      }
+    }  
+  }
+}
+
+//*******************************************************
+// GrammarAnalyzer::generatePredictSets
+//*******************************************************
+void GrammarAnalyzer::generatePredictSets() noexcept
+{
+  for (auto production : myProductions)
+  {
+    Symbol::SymbolSet predictSet{computeFirst(production->getRHS())};
+    if (containsLambda(predictSet))
+    {
+      auto lhsPtr = production->getLHS();
+      NonTerminalSymbol *lhs = dynamic_cast<NonTerminalSymbol*>(lhsPtr.get());
+      Symbol::SymbolSet followSet{lhs->getFollowSet()};
+      predictSet.insert(followSet.begin(), followSet.end());
+    }
+    predictSet.erase(Lambda::getInstance());
+    for (auto symbol : predictSet)
+    {
+      production->addToPredictSet(symbol);
+    }
+  }
+}
+
+//*******************************************************
+// GrammarAnalyzer::makeNonTerminal
+//*******************************************************
+std::shared_ptr<Symbol> GrammarAnalyzer::makeNonTerminal(
+  const std::string &theSymbol) noexcept
+{
+  std::shared_ptr<Symbol> nonTerminal(new NonTerminalSymbol(theSymbol));
+
+  Symbol::SymbolSet::iterator nonTerminalIter =
+    myNonTerminalSymbols.find(nonTerminal);
+  if (nonTerminalIter == myNonTerminalSymbols.end())
+  {
+    myNonTerminalSymbols.insert(nonTerminal);
+    return nonTerminal;
+  }
+
+  return *nonTerminalIter;
+}
+
+//*******************************************************
 // GrammarAnalyzer::makeSymbol
 //*******************************************************
 std::shared_ptr<Symbol> GrammarAnalyzer::makeSymbol(
   const std::string &theSymbol)
 {
-  std::shared_ptr<Symbol> symbol;
   if ('<' == theSymbol[0])
   {
-    symbol.reset(new NonTerminalSymbol(theSymbol));
-    myNonTerminalSymbols.insert(theSymbol);
+    return makeNonTerminal(theSymbol);
   }
-  else
+
+  return makeTerminal(theSymbol);
+}
+
+//*******************************************************
+// GrammarAnalyzer::makeTerminal
+//*******************************************************
+std::shared_ptr<Symbol> GrammarAnalyzer::makeTerminal(
+  const std::string &theSymbol) noexcept
+{
+  std::shared_ptr<Symbol> terminal(new TerminalSymbol(theSymbol));
+
+  Symbol::SymbolSet::iterator terminalIter =
+    myTerminalSymbols.find(terminal);
+  if (terminalIter == myTerminalSymbols.end())
   {
-    symbol.reset(new TerminalSymbol(theSymbol));
-    myTerminalSymbols.insert(theSymbol);
+    myTerminalSymbols.insert(terminal);
+    return terminal;
   }
-  return symbol;
+
+  return *terminalIter;
 }
 
 //*******************************************************
@@ -104,14 +368,16 @@ void GrammarAnalyzer::parseFile(std::ifstream &theFile)
       ++productionNumber;
 
       consumeWhitespace(inputLine);
-      std::string lhs(readSymbol(inputLine));
-      myNonTerminalSymbols.insert(lhs);
+      std::string lhsString(readSymbol(inputLine));
+      std::shared_ptr<Symbol> lhs(makeNonTerminal(lhsString));
 
-      production = new Production(NonTerminalSymbol(lhs), productionNumber);
+      production = new Production(lhs, productionNumber);
       myProductions.push_back(std::shared_ptr<Production>(production));
 
       consumeWhitespace(inputLine);
       std::string arrow(readSymbol(inputLine));
+
+      bool hasRHSSymbols = false;
       while (inputLine.size() > 0)
       {
         consumeWhitespace(inputLine);
@@ -121,13 +387,14 @@ void GrammarAnalyzer::parseFile(std::ifstream &theFile)
         if (! symbolString.empty())
         {
           auto symbol = makeSymbol(symbolString);
-
-          // TODO: create factory, if symbol doesn't start with < then
-          //       need non-terminal, in which case the name should be
-          //       looked up against known tokens and the Symbol can be given
-          //       a terminal code (need Token class then)
           production->addRHSSymbol(symbol);
+          hasRHSSymbols = true;
         }
+      }
+
+      if (! hasRHSSymbols)
+      {
+        production->addRHSSymbol(Lambda::getInstance());
       }
     }
   }
@@ -202,25 +469,25 @@ std::ostream& operator<<(std::ostream &theOS,
 
   theOS << "All Symbols" << std::endl
         << "-----------" << std::endl;
-  for (auto &symbol : theAnalyzer.mySymbols)
+  for (auto symbol : theAnalyzer.mySymbols)
   {
-    theOS << symbol << std::endl;
+    theOS << *symbol << std::endl;
   }
   theOS << std::endl;
 
   theOS << "Terminal Symbols" << std::endl
         << "----------------" << std::endl;
-  for (auto &symbol : theAnalyzer.myTerminalSymbols)
+  for (auto symbol : theAnalyzer.myTerminalSymbols)
   {
-    theOS << symbol << std::endl;
+    theOS << *symbol << std::endl;
   }
   theOS << std::endl;
 
   theOS << "Non-Terminal Symbols" << std::endl
         << "--------------------" << std::endl;
-  for (auto &symbol : theAnalyzer.myNonTerminalSymbols)
+  for (auto symbol : theAnalyzer.myNonTerminalSymbols)
   {
-    theOS << symbol << std::endl;
+    theOS << *symbol << std::endl;
   }
   theOS << std::endl;
 
@@ -228,7 +495,7 @@ std::ostream& operator<<(std::ostream &theOS,
         << "---------------" << std::endl;
   for (auto production : theAnalyzer.myProductions)
   {
-    theOS << production->getLHS() << std::endl;
+    theOS << *(production->getLHS()) << std::endl;
   }
   theOS << std::endl;
 
@@ -237,6 +504,33 @@ std::ostream& operator<<(std::ostream &theOS,
   for (auto production : theAnalyzer.myProductions)
   {
     theOS << production->getRHS() << std::endl;
+  }
+  theOS << std::endl;
+
+  theOS << "First Sets" << std::endl
+        << "----------" << std::endl;
+  for (auto symbol : theAnalyzer.mySymbols)
+  {
+    theOS << symbol->getName() << " = " << symbol->getFirstSet() << std::endl;
+  }
+  theOS << std::endl;
+
+  theOS << "Follow Sets" << std::endl
+        << "----------" << std::endl;
+  for (auto symbol : theAnalyzer.myNonTerminalSymbols)
+  {
+    NonTerminalSymbol *nonTerminal = dynamic_cast<NonTerminalSymbol*>(
+      symbol.get());
+    theOS << nonTerminal->getName() << " = " << nonTerminal->getFollowSet()
+          << std::endl;
+  }
+  theOS << std::endl;
+
+  theOS << "Predict Sets" << std::endl
+        << "------------" << std::endl;
+  for (auto production : theAnalyzer.myProductions)
+  {
+    theOS << *production << " = " << production->getPredictSet() << std::endl;
   }
   theOS << std::endl;
 

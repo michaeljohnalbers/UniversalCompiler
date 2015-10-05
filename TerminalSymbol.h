@@ -51,6 +51,13 @@ class TerminalSymbol : public Symbol
   ~TerminalSymbol() = default;
 
   /**
+   * Always returns false
+   *
+   * @return false
+   */
+  virtual bool getDerivesLambda() const noexcept override;
+
+  /**
    * Copy assignment operator.
    */
   TerminalSymbol& operator=(const TerminalSymbol&) = default;

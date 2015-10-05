@@ -13,7 +13,7 @@
 //*******************************************************
 // Production::Production
 //*******************************************************
-Production::Production(const NonTerminalSymbol &theLHS,
+Production::Production(std::shared_ptr<Symbol> theLHS,
                        uint32_t theNumber) :
   myLHS(theLHS),
   myNumber(theNumber)
@@ -30,9 +30,17 @@ void Production::addRHSSymbol(std::shared_ptr<Symbol> theRHSSymbol)
 }
 
 //*******************************************************
+// Production::addToPredictSet
+//*******************************************************
+void Production::addToPredictSet(std::shared_ptr<Symbol> theSymbol) noexcept
+{
+  myPredictSet.insert(theSymbol);
+}
+
+//*******************************************************
 // Production::getLHS
 //*******************************************************
-NonTerminalSymbol Production::getLHS() const noexcept
+std::shared_ptr<Symbol> Production::getLHS() const noexcept
 {
   return myLHS;
 }
@@ -46,9 +54,17 @@ uint32_t Production::getNumber() const noexcept
 }
 
 //*******************************************************
+// Production::getPredictSet
+//*******************************************************
+Symbol::SymbolSet Production::getPredictSet() const noexcept
+{
+  return myPredictSet;
+}
+
+//*******************************************************
 // Production::getRHS
 //*******************************************************
-std::vector<std::shared_ptr<Symbol>> Production::getRHS() const noexcept
+Symbol::SymbolList Production::getRHS() const noexcept
 {
   return myRHS;
 }
@@ -60,30 +76,6 @@ std::ostream& operator<<(std::ostream &theOS,
                          const Production &theProduction)
 {
   theOS << std::setw(3) << theProduction.myNumber << " "
-        << theProduction.myLHS << " -> " << theProduction.myRHS;
-  return theOS;
-}
-
-//*******************************************************
-// operator<<
-//*******************************************************
-std::ostream& operator<<(std::ostream &theOS,
-                         const std::vector<std::shared_ptr<Symbol>> &theRHS)
-{
-  if (theRHS.empty())
-  {
-    theOS << "lambda";
-  }
-  else
-  {
-    for (auto ii = 0u; ii < theRHS.size(); ++ii)
-    {
-      theOS << *theRHS[ii];
-      if (ii < theRHS.size() - 1)
-      {
-        theOS << " ";
-      }
-    }
-  }
+        << *(theProduction.myLHS) << " -> " << theProduction.myRHS;
   return theOS;
 }

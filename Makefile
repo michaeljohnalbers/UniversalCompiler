@@ -2,6 +2,7 @@
 SRCS := DriverTable.cpp \
         ErrorWarningTracker.cpp \
         GrammarAnalyzer.cpp \
+        Lambda.cpp \
         NonTerminalSymbol.cpp \
         Production.cpp \
         Scanner.cpp \

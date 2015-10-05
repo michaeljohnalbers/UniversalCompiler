@@ -8,6 +8,8 @@
  * @author Michael Albers
  */
 
+#include <memory>
+#include <set>
 #include <string>
 
 #include "Symbol.h"
@@ -60,6 +62,21 @@ class NonTerminalSymbol : public Symbol
    */
   NonTerminalSymbol& operator=(NonTerminalSymbol&&) = default;
 
+  /**
+   * Adds the given symbol to the follow set.
+   *
+   * @param theSymbol
+   *          symbol to add
+   */
+  void addToFollowSet(std::shared_ptr<Symbol> theSymbol) noexcept;
+
+  /**
+   * Returns the follow set for this symbol
+   *
+   * @return the follow set for this symbol
+   */
+  const SymbolSet& getFollowSet() const noexcept;
+
   // ************************************************************
   // Protected
   // ************************************************************
@@ -70,6 +87,8 @@ class NonTerminalSymbol : public Symbol
   // ************************************************************
   private:
 
+  /** Follow set of this symbol. */
+  SymbolSet myFollowSet;
 };
 
 #endif

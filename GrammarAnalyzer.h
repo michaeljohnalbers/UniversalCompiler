@@ -14,7 +14,9 @@
 #include <string>
 #include <vector>
 
-class Symbol;
+#include "NonTerminalSymbol.h"
+#include "Symbol.h"
+
 class Production;
 
 /**
@@ -95,23 +97,121 @@ class GrammarAnalyzer
   // ************************************************************
   private:
 
+  /**
+   * Determines which of the non-terminal symbols derives lambda
+   */
+  void calculateDerivesLambda() noexcept;
+
+  /**
+   * Returns the first set of the provided set of ordered symbols.
+   *
+   * @param list of symbols
+   * @return first set.
+   */
+  Symbol::SymbolSet computeFirst(const Symbol::SymbolList &theSymbols)
+    const noexcept;
+
+  /**
+   * Erases all whitespace (space and tab) from the start of the string until
+   * the first non-whitespace character
+   *
+   * @param theLine
+   *          line from which to erease whitespace
+   */
   void consumeWhitespace(std::string &theLine);
 
+  /**
+   * Checks if lambda is in the given set of symbols.
+   *
+   * @param theSymbols
+   *          set of symbols to check
+   * @return true if lambda is in the set, false otherwise.
+   */
+  static bool containsLambda(const Symbol::SymbolSet &theSymbols) noexcept;
+
+  /**
+   * Fills the first sets for all symbols.
+   */
+  void fillFirstSets() noexcept;
+
+  /**
+   * Fills the follow sets for all non-terminal symbols.
+   */
+  void fillFollowSets() noexcept;
+
+  /**
+   * Generates the predict sets for each production.
+   */
+  void generatePredictSets() noexcept;
+
+  /**
+   * Returns a Symbol for the given non-terminal.
+   *
+   * @param theSymbol
+   *          non-terminal symbol
+   * @return Symbol
+   */
+  std::shared_ptr<Symbol> makeNonTerminal(
+    const std::string &theSymbol) noexcept;
+
+  /**
+   * Creates a Symbol object from the given symbol string.
+   *
+   * @param theSymbol
+   *          symbol string
+   * @param new symbol
+   */
   std::shared_ptr<Symbol> makeSymbol(const std::string &theSymbol);
 
+  /**
+   * Returns a Symbol for the given terminal.
+   *
+   * @param theSymbol
+   *          terminal symbol
+   * @return Symbol
+   */
+  std::shared_ptr<Symbol> makeTerminal(
+    const std::string &theSymbol) noexcept;
+
+  /**
+   * Opens the given file with the given file object.
+   *
+   * @param theFileName
+   *          name of the file to open
+   * @param theFile
+   *          file object used to open the file.
+   */
   void openFile(const std::string &theFileName,
                 std::ifstream &theFile);
 
+  /**
+   * Reads the grammar file.
+   *
+   * @param theFile
+   *          open file object
+   */
   void parseFile(std::ifstream &theFile);
 
+  /**
+   * Reads a single symbol from the start of the input line then erases that
+   * symbol from the line
+   *
+   * @param theLine
+   *          line containing symbols
+   * @return symbol read
+   */
   std::string readSymbol(std::string &theLine);
 
-  std::set<std::string> myNonTerminalSymbols;
+  /** Set of all non-terminal symbols in the productions. */
+  Symbol::SymbolSet myNonTerminalSymbols;
 
-  std::set<std::string> mySymbols;
+  /** Set of all symbols in the productions . */
+  Symbol::SymbolSet mySymbols;
 
-  std::set<std::string> myTerminalSymbols;
+  /** Set of all terminal symbols in the productions. */
+  Symbol::SymbolSet myTerminalSymbols;
 
+  /** All productions */
   std::vector<std::shared_ptr<Production>> myProductions;
 };
 
