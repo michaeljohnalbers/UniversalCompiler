@@ -11,15 +11,8 @@
 #include <cstdint>
 #include <memory>
 #include <ostream>
-#include <vector>
 
-#include "NonTerminalSymbol.h"
-
-class Symbol;
-
-std::ostream& operator<<(
-    std::ostream &theOS,
-    const std::vector<std::shared_ptr<Symbol>> &theRHS);
+#include "Symbol.h"
 
 /**
  * Class for a production within the grammer.
@@ -54,7 +47,7 @@ class Production
    * @param theNumber
    *          numeric identifier of the production
    */
-  Production(const NonTerminalSymbol &theLHS, uint32_t theNumber);
+  Production(const std::shared_ptr<Symbol> theLHS, uint32_t theNumber);
 
   /**
    * Destructor
@@ -70,11 +63,19 @@ class Production
   void addRHSSymbol(std::shared_ptr<Symbol> theRHSSymbol) noexcept;
 
   /**
+   * Adds the given symbol to the predict set of this production
+   *
+   * @param theSymbol
+   *          symbol to add to the predict set
+   */
+  void addToPredictSet(std::shared_ptr<Symbol> theSymbol) noexcept;
+
+  /**
    * Returns the LHS of this production.
    *
    * @return the LHS of this production
    */
-  NonTerminalSymbol getLHS() const noexcept;
+  std::shared_ptr<Symbol> getLHS() const noexcept;
 
   /**
    * Returns the numeric identifier of this production.
@@ -84,11 +85,18 @@ class Production
   uint32_t getNumber() const noexcept;
 
   /**
+   * Returns the predict set for this production.
+   *
+   * @return predict set
+   */
+  Symbol::SymbolSet getPredictSet() const noexcept;
+
+  /**
    * Returns the RHS symbols.
    *
    * @return the RHS symbols.
    */
-  std::vector<std::shared_ptr<Symbol>> getRHS() const noexcept;
+  Symbol::SymbolList getRHS() const noexcept;
 
   /**
    * Copy assignment operator
@@ -112,19 +120,6 @@ class Production
   friend std::ostream& operator<<(std::ostream &theOS,
                                   const Production &theProduction);
 
-  /**
-   * Stream insertion operator.
-   *
-   * @param theOS
-   *          stream to insert into
-   * @param theRhs
-   *          RHS of a production to insert into theOS
-   * @return modified stream
-   */
-  friend std::ostream& operator<<(
-    std::ostream &theOS,
-    const std::vector<std::shared_ptr<Symbol>> &theRHS);
-
   // ************************************************************
   // Protected
   // ************************************************************
@@ -136,13 +131,16 @@ class Production
   private:
 
   /** LHS of production */
-  NonTerminalSymbol myLHS;
+  std::shared_ptr<Symbol> myLHS;
 
   /** Numeric identifier of the production. */
   const uint32_t myNumber;
 
+  /** Set of symbols which predicts this production. */
+  Symbol::SymbolSet myPredictSet;
+
   /** Right hand side of production, in order. */
-  std::vector<std::shared_ptr<Symbol>> myRHS;
+  Symbol::SymbolList myRHS;
 
 };
 

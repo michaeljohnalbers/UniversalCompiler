@@ -14,3 +14,11 @@ TerminalSymbol::TerminalSymbol(const std::string &theName) :
   Symbol(theName)
 {
 }
+
+//*******************************************************
+// TerminalSymbol::getDerivesLambda
+//*******************************************************
+bool TerminalSymbol::getDerivesLambda() const noexcept
+{
+  return false;
+}
