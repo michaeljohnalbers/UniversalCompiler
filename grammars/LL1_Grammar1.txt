@@ -1,0 +1,27 @@
+# From "Crafting a Compiler", Figure 5.16
+1 IfSym if
+2 ThenSym then
+3 EndifSym endif
+4 ElseSym else
+5 SemiColon
+6 Id
+7 PlusOp
+-----
+letter  whitespace +       ;       EOL     Other
+1:MA:0  2:MNA:0    0:HA:7  0:HA:5  2:MNA:0 E
+1:MA:0  0:HR:6     0:HR:1  0:HR:1  0:HR:1  E
+0:HR:98 2:MNA:0    0:HR:98 0:HR:98 2:MNA:0 E
+-----
+<Stmt> -> if <Expr> then <StmtList> <V>
+<V> -> endif
+<V> -> else <StmtList> endif
+<StmtList> -> <X> <Y>
+<X> -> <Stmt>
+<Y> -> ; <Stmt> <Y>
+<Y> ->
+<Expr> -> var <V2>
+<V2> -> + <Expr>
+<V2> ->
+-----
+<Stmt>
+

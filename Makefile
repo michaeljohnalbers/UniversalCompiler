@@ -1,11 +1,13 @@
 
-SRCS := DriverTable.cpp \
-        ErrorWarningTracker.cpp \
+SRCS := ErrorWarningTracker.cpp \
+        Grammar.cpp \
         GrammarAnalyzer.cpp \
         Lambda.cpp \
         NonTerminalSymbol.cpp \
+        PredictTable.cpp \
         Production.cpp \
         Scanner.cpp \
+        ScannerTable.cpp \
         Symbol.cpp \
         TerminalSymbol.cpp \
         main.cpp

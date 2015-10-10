@@ -1,0 +1,29 @@
+# Taken from
+# http://pages.cs.wisc.edu/~fischer/cs536.f12/lectures/Lecture22.4up.pdf
+1 LBracket
+2 RBracket
+4 id
+5 SemiColon
+6 IfSym if
+7 LParen
+8 RParen
+9 PlusOp
+10 MinusOp
+11 AssignOp
+-----
+letter  whitespace +       -       ;       (       )       {       }       EOL     Other
+1:MA:0  2:MNA:0    0:HA:9  0:HA:10 0:HA:5  0:HA:7  0:HA:8  0:HA:1  0:HA:2  2:MNA:0 E
+1:MA:0  0:HR:4     0:HR:4  0:HR:4  0:HR:4  0:HR:4  0:HR:4  0:HR:4  0:HR:4  0:HR:4  E
+0:HR:98 2:MNA:0    0:HR:98 0:HR:98 0:HR:98 0:HR:98 0:HR:98 0:HR:98 0:HR:98 2:MNA:0 E
+-----
+<Prog> -> { <Stmts> } $
+<Stmts> -> <Stmt> <Stmts>
+<Stmts> ->
+<Stmt> -> id = <Expr>  ;
+<Stmt> -> if ( <Expr> ) <Stmt>
+<Expr> -> id <Etail>
+<Etail> -> + <Expr>
+<Etail> -> - <Expr>
+<Etail> ->
+-----
+<Prog>

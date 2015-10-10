@@ -1,0 +1,47 @@
+1 Id
+2 IntLiteral
+3 PlusOp
+4 AssignOp
+5 Comma
+6 SemiColon
+7 LParen
+8 RParen
+9 MinusOp
+10 BeginSym begin
+11 EndSym end
+12 WriteSym write
+13 ReadSym read
+-----
+letter  digit   whitespace +       -       =       :       ,       ;       (       )       _       EOL      Other
+1:MA:0  2:MA:0  3:MNA:0    0:HA:3  4:MA:0  E       6:MA:0  0:HA:5  0:HA:6  0:HA:7  0:HA:8  E       3:MNA:0  E
+1:MA:0  1:MA:0  0:HR:1     0:HR:1  0:HR:1  0:HR:1  0:HR:1  0:HR:1  0:HR:1  0:HR:1  0:HR:1  1:MA:0  0:HR:1   E
+0:HR:2  2:MA:0  0:HR:2     0:HR:2  0:HR:2  0:HR:2  0:HR:2  0:HR:2  0:HR:2  0:HR:2  0:HR:2  0:HR:2  0:HR:2   E
+0:HR:98 0:HR:98 3:MNA:0    0:HR:98 0:HR:98 0:HR:98 0:HR:98 0:HR:98 0:HR:98 0:HR:98 0:HR:98 0:HR:98 3:MNA:0  E
+0:HR:9  0:HR:9  0:HR:9     0:HR:9  5:MNA:0 0:HR:9  0:HR:9  0:HR:9  0:HR:9  0:HR:9  0:HR:9  E       0:HR:9   E
+5:MNA:0 5:MNA:0 5:MNA:0    5:MNA:0 5:MNA:0 5:MNA:0 5:MNA:0 5:MNA:0 5:MNA:0 5:MNA:0 5:MNA:0 5:MNA:0 0:HNA:98 5:MNA:0
+E       E       E          E       E       0:HA:4  E       E       E       E       E       E       E        E
+-----
+<program> -> begin <stmt list> end
+<stmt list> -> <statement> <statement tail>
+<statement tail> -> <stmt list>
+<statement tail> ->
+<statement> -> Id := <expression> ;
+<statement> -> read ( <id list> ) ;
+<statement> -> write ( <expr list> ) ;
+<id list> -> Id <id tail>
+<id tail> -> , <id list>
+<id tail> ->
+<expr list> -> <expression> <expression tail>
+<expression tail> -> , <expr list>
+<expression tail> ->
+<expression> -> <primary> <primary tail>
+<primary tail> -> <add op> <expression>
+<primary tail> ->
+<primary> -> ( <expression> )
+<primary> -> Id
+<primary> -> IntLiteral
+<add op> -> +
+<add op> -> -
+<system goal> -> <program> $
+-----
+<system goal>

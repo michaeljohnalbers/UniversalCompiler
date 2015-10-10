@@ -14,21 +14,14 @@
 #include <string>
 #include <vector>
 
+#include "Grammar.h"
 #include "NonTerminalSymbol.h"
 #include "Symbol.h"
 
 class Production;
 
 /**
- * Class to read in a grammar in BNF from a file and store the productions and
- * symbols. This isn't the smartest of parsers, don't get too clever.
- * File format:
- *  - The file must have one production per file
- *  - Each token must be separated by at least one whitespace character for
- *    the previous and next token.
- *  - Empty lines and lines which start with a '#' are ignored
- *  - Do NOT deviate from BNF. No incomplete lines or anything like that.
- *  - Does not accept '|' for multiple productions per LHS
+ * This class accepts a Grammar and populates the first/follow/predict sets.
  */
 class GrammarAnalyzer
 {
@@ -53,12 +46,13 @@ class GrammarAnalyzer
   GrammarAnalyzer(GrammarAnalyzer&&) = default;
 
   /**
-   * Constructor. Reads in the file an populates this object
+   * Constructor. Populates the first/follow/predict sets of the provided
+   * grammar.
    *
-   * @param theFileName
-   *          name of the file containing the grammar
+   * @param theGrammar
+   *          grammar object to populate
    */
-  GrammarAnalyzer(const std::string &theFileName);
+  GrammarAnalyzer(Grammar &theGrammar);
 
   /**
    * Destructor
@@ -112,15 +106,6 @@ class GrammarAnalyzer
     const noexcept;
 
   /**
-   * Erases all whitespace (space and tab) from the start of the string until
-   * the first non-whitespace character
-   *
-   * @param theLine
-   *          line from which to erease whitespace
-   */
-  void consumeWhitespace(std::string &theLine);
-
-  /**
    * Checks if lambda is in the given set of symbols.
    *
    * @param theSymbols
@@ -144,75 +129,20 @@ class GrammarAnalyzer
    */
   void generatePredictSets() noexcept;
 
-  /**
-   * Returns a Symbol for the given non-terminal.
-   *
-   * @param theSymbol
-   *          non-terminal symbol
-   * @return Symbol
-   */
-  std::shared_ptr<Symbol> makeNonTerminal(
-    const std::string &theSymbol) noexcept;
-
-  /**
-   * Creates a Symbol object from the given symbol string.
-   *
-   * @param theSymbol
-   *          symbol string
-   * @param new symbol
-   */
-  std::shared_ptr<Symbol> makeSymbol(const std::string &theSymbol);
-
-  /**
-   * Returns a Symbol for the given terminal.
-   *
-   * @param theSymbol
-   *          terminal symbol
-   * @return Symbol
-   */
-  std::shared_ptr<Symbol> makeTerminal(
-    const std::string &theSymbol) noexcept;
-
-  /**
-   * Opens the given file with the given file object.
-   *
-   * @param theFileName
-   *          name of the file to open
-   * @param theFile
-   *          file object used to open the file.
-   */
-  void openFile(const std::string &theFileName,
-                std::ifstream &theFile);
-
-  /**
-   * Reads the grammar file.
-   *
-   * @param theFile
-   *          open file object
-   */
-  void parseFile(std::ifstream &theFile);
-
-  /**
-   * Reads a single symbol from the start of the input line then erases that
-   * symbol from the line
-   *
-   * @param theLine
-   *          line containing symbols
-   * @return symbol read
-   */
-  std::string readSymbol(std::string &theLine);
+  /** Grammar definition. */
+  Grammar &myGrammar;
 
   /** Set of all non-terminal symbols in the productions. */
   Symbol::SymbolSet myNonTerminalSymbols;
+
+  /** All productions */
+  std::vector<std::shared_ptr<Production>> myProductions;
 
   /** Set of all symbols in the productions . */
   Symbol::SymbolSet mySymbols;
 
   /** Set of all terminal symbols in the productions. */
   Symbol::SymbolSet myTerminalSymbols;
-
-  /** All productions */
-  std::vector<std::shared_ptr<Production>> myProductions;
 };
 
 #endif
