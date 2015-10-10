@@ -1,8 +1,8 @@
-#ifndef DRIVERTABLE_H
-#define DRIVERTABLE_H
+#ifndef SCANNERTABLE_H
+#define SCANNERTABLE_H
 
 /**
- * @file DriverTable.h
+ * @file ScannerTable.h
  * @brief Defines the class used to drive the scanning of an input file
  *
  * @author Michael Albers
@@ -12,12 +12,13 @@
 #include <map>
 #include <ostream>
 #include <string>
+#include <vector>
 
 /**
  * Table used to drive the scanning. Used to work through the regular
  * expressions defining the tokens and the actions to take for each state.
  */
-class DriverTable
+class ScannerTable
 {
   // ************************************************************
   // Public
@@ -46,29 +47,8 @@ class DriverTable
   /** State number */
   using State = uint32_t;
 
-  /** Starting state */
-  static constexpr State START_STATE = 0;
-
-  /** Token codes */
-  enum class TokenCode
-  {
-    NoToken, // Comment, space, error, etc.
-    BeginSym,
-    EndSym,
-    ReadSym,
-    WriteSym,
-    Id,
-    IntLiteral,
-    LParen,
-    RParen,
-    SemiColon,
-    Comma,
-    AssignOp,
-    PlusOp,
-    MinusOp,
-    EqualOp,
-    EofSym,
-  };
+  /** Token Id */
+  using TokenId = uint32_t;
 
   /**
    * Single entry in table.
@@ -82,14 +62,18 @@ class DriverTable
   class Entry
   {
     public:
-    /** Sets entry to error */
+
+    /**
+     * Default constructor, sets entry to error
+     */
     Entry();
-    /** Used for Move* action*/
-    Entry(State theNextState, Action theAction);
-    /** Used for Halt* action */
-    Entry(Action theAction, TokenCode theTokenCode);
-    /** Full parameterized constructor */
-    Entry(State theNextState, Action theAction, TokenCode theTokenCode);
+
+    /**
+     * Constructor, converts action acronym to an Action.
+     */
+    Entry(State theNextState, const std::string &theActionAcronym,
+          TokenId theTokenId);
+
     Entry(const Entry &) = default;
     Entry(Entry &&) = default;
     ~Entry() = default;
@@ -101,50 +85,95 @@ class DriverTable
 
     State myNextState;
     Action myAction;
-    TokenCode myTokenCode;
+    TokenId myTokenId;
   };
 
   /**
    * Default constructor.
    */
-  DriverTable();
+  ScannerTable();
 
   /**
    * Copy constructor
    */
-  DriverTable(const DriverTable &) = default;
+  ScannerTable(const ScannerTable &) = default;
 
   /**
    * Move constructor
    */
-  DriverTable(DriverTable &&) = default;
+  ScannerTable(ScannerTable &&) = default;
 
   /**
    * Destructor
    */
-  ~DriverTable() = default;
+  ~ScannerTable() = default;
 
   /**
    * Copy assignment operator
    */
-  DriverTable& operator=(const DriverTable &) = default;
+  ScannerTable& operator=(const ScannerTable &) = default;
 
   /**
    * Move assignment operator
    */
-  DriverTable& operator=(DriverTable &&) = default;
+  ScannerTable& operator=(ScannerTable &&) = default;
+
+  /**
+   * Adds a new column to the end of the current column set. Each column
+   * defines a character class.
+   *
+   * @param theCharacterClass
+   *          character class
+   */
+  void addColumn(const std::string &theCharacterClass) noexcept;
+
+  /**
+   * Informs the table of a new reserved word.
+   *
+   * @param theTokenId
+   *          ID of the token to add
+   * @param theReservedWord
+   *          reserved word
+   */
+  void addReservedWord(TokenId theTokenId, std::string theReservedWord)
+    noexcept;
+
+  /**
+   * Add the given entry to the driver table at the given location. If the
+   * state doesn't exist yet, the table will be resized to create it. The column
+   * number must be within the current number of columns (see addColumn).
+   *
+   * @param theState
+   *          state value (i.e., table row number), zero-based
+   * @param theColumn
+   *          column number, zero-based
+   * @param theEntry
+   *          driver table entry
+   */
+  void addTableEntry(State theState, uint32_t theColumn, const Entry &theEntry)
+    noexcept;
+
+  /**
+   * Informs the table of a new token definition.
+   *
+   * @param theTokenId
+   *          ID of the token to add
+   * @param theToken
+   *          token name
+   */
+  void addToken(TokenId theTokenId, const std::string &theToken) noexcept;
 
   /**
    * Returns a new token code if the given token is a reserved word.
    *
-   * @param theTokenCode
-   *          code of current token
+   * @param theTokenId
+   *          Id of current token
    * @param theToken
    *          actual token
    * @return possibly updated token code
    */
-  TokenCode checkExceptions(TokenCode theTokenCode, const std::string &theToken)
-    const;
+  TokenId checkExceptions(TokenId theTokenId, std::string theToken)
+    const noexcept;
 
   /**
    * Returns the action for the given current state/character inputs.
@@ -159,13 +188,13 @@ class DriverTable
   Action getAction(State theCurrentState, char theCharacter) const;
 
   /**
-   * Returns a string representation of the given token
+   * Returns the name of the given token Id
    *
-   * @param theTokenCode
-   *          token code for which to get string representation
-   * @return string reprsentation of the token
+   * @param theTokenId
+   *          token id
+   * @return token name
    */
-  static std::string getDescription(TokenCode theTokenCode) noexcept;
+  std::string getTokenName(TokenId theTokenId) const noexcept;
 
   /**
    * Returns the next state given the current state/character inputs.
@@ -180,27 +209,30 @@ class DriverTable
   State getState(State theCurrentState, char theCharacter) const;
 
   /**
-   * Returns the token code for the given state/character combination.
+   * Returns the token Id for the given state/character combination.
    *
    * @param theCurrentState
    *          current state
    * @param theCharacter
    *          current character
-   * @return token code
+   * @return token id
    * @throws std::invalid_argument on invalid state
    */
-  TokenCode lookupCode(State theCurrentState, char theCharacter) const;
+  TokenId lookupCode(State theCurrentState, char theCharacter) const;
+
+  /** Starting state */
+  static constexpr uint32_t START_STATE = 0;
+
+  /** Built-in token id for whitespace */
+  static constexpr TokenId NO_TOKEN = 98;
+
+  /** End of file symbol. */
+  static constexpr TokenId EOF_SYMBOL = 99;
 
   // ************************************************************
   // Protected
   // ************************************************************
   protected:
-
-  /** Maximum legal state number. */
-  static constexpr uint32_t MAX_STATE = 6;
-
-  /** Number of character classes needed. */
-  static constexpr uint32_t NUMBER_CHARACTER_CLASSES = 15;
 
   /**
    * Returns the table column number based on the given character.
@@ -226,30 +258,17 @@ class DriverTable
   // ************************************************************
   private:
 
-  /**
-   * Populates myTable
-   */
-  void populateTable() noexcept;
+  /** Table columns character classes*/
+  std::vector<std::string> myColumnCharacterClasses;
 
-  /**
-   * Populates individual states in the table
-   */
-  void populateState0() noexcept;
-  void populateState1() noexcept;
-  void populateState2() noexcept;
-  void populateState3() noexcept;
-  void populateState4() noexcept;
-  void populateState5() noexcept;
-  void populateState6() noexcept;
+  /** Reserved words. Token number, reserved word*/
+  std::map<TokenId, std::string> myReservedWords;
 
-  using TokenMap = std::map<TokenCode, std::string>;
+  /** Scanner driver table */
+  std::vector<std::vector<Entry>> myTable;
 
-  /** Token-to-string mapping*/
-  static TokenMap ourTokenDescriptions;
-
-  /** Driver table. */
-  Entry myTable[MAX_STATE+1][NUMBER_CHARACTER_CLASSES];
-
+  /** Tokens from the grammar file. Token number, token name*/
+  std::map<TokenId, std::string> myTokens;
 };
 
 #endif

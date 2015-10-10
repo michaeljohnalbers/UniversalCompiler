@@ -12,9 +12,10 @@
 #include <fstream>
 #include <string>
 
-#include "DriverTable.h"
+#include "ScannerTable.h"
 
 class ErrorWarningTracker;
+class ScannerTable;
 
 /**
  * Scans an input file returning all of the tokens contained therein.
@@ -46,11 +47,19 @@ class Scanner
    *
    * @param theFile
    *          file to scan/tokenize
+   * @param theScannerTable
+   *          table which drives the scan
+   * @param theEWTracker
+   *          error/warning tracker
+   * @param thePrintTokens
+   *          if true, tokens will be printed as they are scanned
    * @throw std::runtime_error
    *          on error opening input file
    */
   Scanner(const std::string &theFile,
-          ErrorWarningTracker &theEWTracker);
+          ScannerTable &theScannerTable,
+          ErrorWarningTracker &theEWTracker,
+          bool thePrintTokens);
 
   /**
    * Destructor
@@ -90,7 +99,7 @@ class Scanner
    * @param theTokenId
    *          OUT parameter, ID of next token.
    */
-  void scan(std::string &theToken, DriverTable::TokenCode &theTokenId);
+  void scan(std::string &theToken, ScannerTable::TokenId &theTokenId);
 
   // ************************************************************
   // Protected
@@ -118,9 +127,6 @@ class Scanner
   /** Current column being read. */
   uint32_t myColumn = 0;
 
-  /** Table driving the scan. */
-  DriverTable myDriverTable;
-
   /** Error/Warning tracker */
   ErrorWarningTracker &myEWTracker;
 
@@ -132,6 +138,12 @@ class Scanner
 
   /** Current line number. */
   uint32_t myLine = 1;
+
+  /** Should tokens be printed as they are scanned? */
+  const bool myPrintTokens;
+
+  /** Scanner driver table */
+  ScannerTable &myScannerTable;
 };
 
 #endif

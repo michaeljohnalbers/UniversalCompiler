@@ -12,14 +12,19 @@
 
 #include "ErrorWarningTracker.h"
 #include "Scanner.h"
+#include "ScannerTable.h"
 
 //*******************************************************
 // Scanner::Scanner
 //*******************************************************
 Scanner::Scanner(const std::string &theFile,
-                 ErrorWarningTracker &theEWTracker) :
+                 ScannerTable &theScannerTable,
+                 ErrorWarningTracker &theEWTracker,
+                 bool thePrintTokens) :
   myEWTracker(theEWTracker),
-  myFile(theFile)
+  myFile(theFile),
+  myPrintTokens(thePrintTokens),
+  myScannerTable(theScannerTable)
 {
   myInputStream.open(myFile, std::ios::in);
   if (! myInputStream)
@@ -72,28 +77,28 @@ uint32_t Scanner::getLine() const noexcept
 // Scanner::scan
 //*******************************************************
 void Scanner::scan(std::string &theToken,
-                   DriverTable::TokenCode &theTokenId)
+                   ScannerTable::TokenId &theTokenId)
 {
-  DriverTable::State currentState;
+  ScannerTable::State currentState;
 
   // Resets the variables in this function to (re)start the scan from a fresh
   // token.
   auto reset = [&]()
   {
     theToken.clear();
-    theTokenId = DriverTable::TokenCode::NoToken;
-    currentState = DriverTable::START_STATE;
+    theTokenId = ScannerTable::NO_TOKEN;
+    currentState = ScannerTable::START_STATE;
   };
 
   reset();
 
   while (currentChar() >= 0) // -1 is returned on EOF
   {
-    auto action = myDriverTable.getAction(currentState, currentChar());
+    auto action = myScannerTable.getAction(currentState, currentChar());
 
     switch (action)
     {
-      case DriverTable::Action::Error:
+      case ScannerTable::Action::Error:
       {
         theToken += currentChar();
         consumeChar();
@@ -106,50 +111,50 @@ void Scanner::scan(std::string &theToken,
       }
       break;
 
-      case DriverTable::Action::MoveAppend:
-        currentState = myDriverTable.getState(currentState,
-                                              currentChar());
+      case ScannerTable::Action::MoveAppend:
+        currentState = myScannerTable.getState(currentState,
+                                               currentChar());
         theToken += currentChar();
         consumeChar();
         break;
 
-      case DriverTable::Action::MoveNoAppend:
-        currentState = myDriverTable.getState(currentState,
-                                              currentChar());
+      case ScannerTable::Action::MoveNoAppend:
+        currentState = myScannerTable.getState(currentState,
+                                               currentChar());
         consumeChar();
         break;
 
-      case DriverTable::Action::HaltAppend:
+      case ScannerTable::Action::HaltAppend:
         theToken += currentChar();
-        theTokenId = myDriverTable.lookupCode(currentState,
-                                              currentChar());
-        theTokenId = myDriverTable.checkExceptions(theTokenId,
-                                                   theToken);
+        theTokenId = myScannerTable.lookupCode(currentState,
+                                               currentChar());
+        theTokenId = myScannerTable.checkExceptions(theTokenId,
+                                                    theToken);
         consumeChar();
-        if (DriverTable::TokenCode::NoToken == theTokenId)
+        if (ScannerTable::NO_TOKEN == theTokenId)
         {
           scan(theToken, theTokenId);
         }
         return;
 
-      case DriverTable::Action::HaltNoAppend:
-        theTokenId = myDriverTable.lookupCode(currentState,
-                                              currentChar());
-        theTokenId = myDriverTable.checkExceptions(theTokenId,
-                                                   theToken);
+      case ScannerTable::Action::HaltNoAppend:
+        theTokenId = myScannerTable.lookupCode(currentState,
+                                               currentChar());
+        theTokenId = myScannerTable.checkExceptions(theTokenId,
+                                                    theToken);
         consumeChar();
-        if (DriverTable::TokenCode::NoToken == theTokenId)
+        if (ScannerTable::NO_TOKEN == theTokenId)
         {
           scan(theToken, theTokenId);
         }
         return;
 
-      case DriverTable::Action::HaltReuse:
-        theTokenId = myDriverTable.lookupCode(currentState,
-                                              currentChar());
-        theTokenId = myDriverTable.checkExceptions(theTokenId,
-                                                   theToken);
-        if (DriverTable::TokenCode::NoToken == theTokenId)
+      case ScannerTable::Action::HaltReuse:
+        theTokenId = myScannerTable.lookupCode(currentState,
+                                               currentChar());
+        theTokenId = myScannerTable.checkExceptions(theTokenId,
+                                                    theToken);
+        if (ScannerTable::NO_TOKEN == theTokenId)
         {
           scan(theToken, theTokenId);
         }
@@ -160,6 +165,16 @@ void Scanner::scan(std::string &theToken,
   if (myInputStream.eof())
   {
     theToken = "";
-    theTokenId = DriverTable::TokenCode::EofSym;
+    theTokenId = ScannerTable::EOF_SYMBOL;
+  }
+
+  // TODO: eventually put this into the parser?
+  if (ScannerTable::NO_TOKEN == theTokenId)
+  {
+    if (myPrintTokens)
+    {
+      std::cout << "Token: " << myScannerTable.getTokenName(theTokenId)
+                << " (\"" << theToken << "\")" << std::endl;
+    }
   }
 }
