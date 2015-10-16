@@ -12,7 +12,7 @@ letter  whitespace +       ;       EOL     Other
 1:MA:0  0:HR:6     0:HR:1  0:HR:1  0:HR:1  E
 0:HR:98 2:MNA:0    0:HR:98 0:HR:98 2:MNA:0 E
 -----
-<Stmt> -> if <Expr> then <StmtList> <V>
+<Stmt> -> if <Expr> then <StmtList> <V> $
 <V> -> endif
 <V> -> else <StmtList> endif
 <StmtList> -> <X> <Y>

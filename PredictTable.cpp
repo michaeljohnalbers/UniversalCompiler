@@ -44,6 +44,7 @@ void PredictTable::populateTable()
       {
         myLargestColumnNameSize = columnNameSize;
       }
+
       myTable[lhsSymbol][predictSymbol] = production->getNumber();
       myTerminals.insert(predictSymbol);
     }

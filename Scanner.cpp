@@ -33,6 +33,13 @@ Scanner::Scanner(const std::string &theFile,
     throw std::runtime_error("Failed to open '" + myFile + "': " +
                              std::strerror(localErrno));
   }
+
+  Token token;
+  do
+  {
+    token = getToken();
+    myTokens.push_back(token);
+  } while (!(token.getTerminal() == myScannerTable.getEOF()));
 }
 
 //*******************************************************
@@ -44,7 +51,7 @@ void Scanner::consumeChar()
   ++myColumn;
   if ('\n' == character)
   {
-    myColumn = 0;
+    myColumn = 1;
     ++myLine;
   }
 }
@@ -74,23 +81,46 @@ uint32_t Scanner::getLine() const noexcept
 }
 
 //*******************************************************
-// Scanner::scan
+// Scanner::getRemainingTokens
 //*******************************************************
-void Scanner::scan(std::string &theToken,
-                   ScannerTable::TokenId &theTokenId)
+std::deque<Token> Scanner::getRemainingTokens() const noexcept
 {
+  return myTokens;
+}
+
+//*******************************************************
+// Scanner::getToken
+//*******************************************************
+Token Scanner::getToken()
+{
+  Token token;
+
   ScannerTable::State currentState;
 
   // Resets the variables in this function to (re)start the scan from a fresh
   // token.
-  auto reset = [&]()
+  auto reset = [&token, &currentState]()
   {
-    theToken.clear();
-    theTokenId = ScannerTable::NO_TOKEN;
+    token.clear();
     currentState = ScannerTable::START_STATE;
   };
 
+  auto isNoTerminal = [](std::shared_ptr<Symbol> theTerminal)->bool
+  {
+    bool isNoTerminal = false;
+    try
+    {
+      isNoTerminal =
+        (dynamic_cast<TerminalSymbol*>(theTerminal.get())->getId() ==
+         ScannerTable::NO_TERMINAL);
+    }
+    catch (std::bad_cast){/* Just in case */}
+
+    return isNoTerminal;
+  };
+
   reset();
+  token.setPosition(myLine, myColumn);
 
   while (currentChar() >= 0) // -1 is returned on EOF
   {
@@ -100,11 +130,11 @@ void Scanner::scan(std::string &theToken,
     {
       case ScannerTable::Action::Error:
       {
-        theToken += currentChar();
+        token.append(currentChar());
         consumeChar();
 
         std::string error;
-        error += "invalid token: '" + theToken + "'";
+        error += "invalid token: '" + token.getToken() + "'";
         myEWTracker.reportError(getLine(), getColumn(), error);
 
         reset(); // Error recovery
@@ -114,7 +144,7 @@ void Scanner::scan(std::string &theToken,
       case ScannerTable::Action::MoveAppend:
         currentState = myScannerTable.getState(currentState,
                                                currentChar());
-        theToken += currentChar();
+        token.append(currentChar());
         consumeChar();
         break;
 
@@ -125,56 +155,75 @@ void Scanner::scan(std::string &theToken,
         break;
 
       case ScannerTable::Action::HaltAppend:
-        theToken += currentChar();
-        theTokenId = myScannerTable.lookupCode(currentState,
-                                               currentChar());
-        theTokenId = myScannerTable.checkExceptions(theTokenId,
-                                                    theToken);
+      {
+        token.append(currentChar());
+        auto terminal = myScannerTable.lookupTerminal(currentState,
+                                                      currentChar(),
+                                                      token.getToken());
+        token.setTerminal(terminal);
         consumeChar();
-        if (ScannerTable::NO_TOKEN == theTokenId)
+        if (isNoTerminal(terminal))
         {
-          scan(theToken, theTokenId);
+          return getToken();
         }
-        return;
+      }
+      return token;
 
       case ScannerTable::Action::HaltNoAppend:
-        theTokenId = myScannerTable.lookupCode(currentState,
-                                               currentChar());
-        theTokenId = myScannerTable.checkExceptions(theTokenId,
-                                                    theToken);
+      {
+        auto terminal = myScannerTable.lookupTerminal(currentState,
+                                                      currentChar(),
+                                                      token.getToken());
+        token.setTerminal(terminal);
         consumeChar();
-        if (ScannerTable::NO_TOKEN == theTokenId)
+        if (isNoTerminal(terminal))
         {
-          scan(theToken, theTokenId);
+          return getToken();
         }
-        return;
+      }
+      return token;
 
       case ScannerTable::Action::HaltReuse:
-        theTokenId = myScannerTable.lookupCode(currentState,
-                                               currentChar());
-        theTokenId = myScannerTable.checkExceptions(theTokenId,
-                                                    theToken);
-        if (ScannerTable::NO_TOKEN == theTokenId)
+      {
+        auto terminal = myScannerTable.lookupTerminal(currentState,
+                                                      currentChar(),
+                                                      token.getToken());
+        token.setTerminal(terminal);
+        if (isNoTerminal(terminal))
         {
-          scan(theToken, theTokenId);
+          return getToken();
         }
-        return;
+      }
+      return token;
     }
   }
 
   if (myInputStream.eof())
   {
-    theToken = "";
-    theTokenId = ScannerTable::EOF_SYMBOL;
+    token.clear();
+    token.append('$'); // Just to match examples in lecture 15 PDF.
+    token.setTerminal(myScannerTable.getEOF());
+    token.setPosition(myLine, myColumn);
   }
 
-  // TODO: eventually put this into the parser?
-  if (ScannerTable::NO_TOKEN == theTokenId)
+  return token;
+}
+
+//*******************************************************
+// Scanner::scan
+//*******************************************************
+Token Scanner::scan()
+{
+  Token token{myTokens.front()};
+  // Allow so multiple calls to scan after EOF keep returning EOF.
+  if (myTokens.size() > 1)
   {
-    if (myPrintTokens)
-    {
-      std::cout << "Token: " << myScannerTable.getTokenName(theTokenId)
-                << " (\"" << theToken << "\")" << std::endl;
-    }
+    myTokens.pop_front();
   }
+
+  if (myPrintTokens)
+  {
+    std::cout << "Token: " << token << std::endl;
+  }
+  return token;
 }

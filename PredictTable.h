@@ -77,7 +77,7 @@ class PredictTable
    * @return production number or 0 on invalid symbol combination
    */
   uint32_t getProductionNumber(std::shared_ptr<Symbol> theNonTerminal,
-                               std::shared_ptr<Symbol> theTerminal)
+                               std::shared_ptr<Symbol> theTerminalId)
     const noexcept;
 
   /**
@@ -116,7 +116,10 @@ class PredictTable
   /** Size of the longest non-terminal name. */
   uint32_t myLargestNonTerminalNameSize = 0;
 
-  /** Predict table. Mimics a 2-D array. */
+  /**
+   * Predict table. Mimics a 2-D array.
+   * myTable[non-terminal][terminal] = production number
+   */
   std::map<std::shared_ptr<Symbol>,
            std::map<std::shared_ptr<Symbol>, uint32_t>> myTable;
 
@@ -125,4 +128,3 @@ class PredictTable
 };
 
 #endif
-

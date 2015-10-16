@@ -11,8 +11,10 @@
 #include <cstdint>
 #include <fstream>
 #include <string>
+#include <deque>
 
 #include "ScannerTable.h"
+#include "Token.h"
 
 class ErrorWarningTracker;
 class ScannerTable;
@@ -92,14 +94,18 @@ class Scanner
   uint32_t getLine() const noexcept;
 
   /**
-   * Returns the next token in the file.
+   * Returns the tokens which have not yet been scanned.
    *
-   * @param theToken
-   *          OUT parameter, next token
-   * @param theTokenId
-   *          OUT parameter, ID of next token.
+   * @return list of tokens
    */
-  void scan(std::string &theToken, ScannerTable::TokenId &theTokenId);
+  std::deque<Token> getRemainingTokens() const noexcept;
+
+  /**
+   * Consumes and returns the next token in the source file.
+   *
+   * @return scanned token
+   */
+  Token scan();
 
   // ************************************************************
   // Protected
@@ -124,8 +130,15 @@ class Scanner
   // ************************************************************
   private:
 
+  /**
+   * Get the next token from the file.
+   *
+   * @return next token
+   */
+  Token getToken();
+
   /** Current column being read. */
-  uint32_t myColumn = 0;
+  uint32_t myColumn = 1;
 
   /** Error/Warning tracker */
   ErrorWarningTracker &myEWTracker;
@@ -144,6 +157,9 @@ class Scanner
 
   /** Scanner driver table */
   ScannerTable &myScannerTable;
+
+  /** All tokens from the file. */
+  std::deque<Token> myTokens;
 };
 
 #endif

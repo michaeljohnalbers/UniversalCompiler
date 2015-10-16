@@ -72,6 +72,14 @@ std::ostream& operator<<(std::ostream &theOS, const Symbol &theSymbol)
 }
 
 //*******************************************************
+// Symbol::operator==
+//*******************************************************
+bool Symbol::operator==(const Symbol &theRHS) const noexcept
+{
+  return getName() == theRHS.getName();
+}
+
+//*******************************************************
 // Symbol::print
 //*******************************************************
 void Symbol::print(std::ostream &theOS) const noexcept
