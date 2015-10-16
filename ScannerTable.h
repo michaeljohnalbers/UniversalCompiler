@@ -10,13 +10,17 @@
 
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <ostream>
 #include <string>
 #include <vector>
 
+#include "Symbol.h"
+#include "TerminalSymbol.h"
+
 /**
  * Table used to drive the scanning. Used to work through the regular
- * expressions defining the tokens and the actions to take for each state.
+ * expressions defining the terminals and the actions to take for each state.
  */
 class ScannerTable
 {
@@ -36,19 +40,16 @@ class ScannerTable
     MoveAppend,
     /** Move to next state, do not append current character, consume it. */
     MoveNoAppend,
-    /** Return token code, consume character, append to next token. */
+    /** Return terminal code, consume character, append to next token. */
     HaltAppend,
-    /** Return token code, consume character, do not append. */
+    /** Return terminal code, consume character, do not append. */
     HaltNoAppend,
-    /** Return token code, consume character, save for reuse in next token. */
+    /** Return terminal code, consume character, save for use in next token. */
     HaltReuse,
   };
 
   /** State number */
   using State = uint32_t;
-
-  /** Token Id */
-  using TokenId = uint32_t;
 
   /**
    * Single entry in table.
@@ -56,8 +57,8 @@ class ScannerTable
    * If myAction is one of the Move* values, then use myNextState. No token
    * has been found yet.
    *
-   * If myAction is one of the Halt* values, then use myTokenCode. A full token
-   * has been found.
+   * If myAction is one of the Halt* values, then use myTerminalCode. A full
+   * token has been found.
    */
   class Entry
   {
@@ -72,7 +73,7 @@ class ScannerTable
      * Constructor, converts action acronym to an Action.
      */
     Entry(State theNextState, const std::string &theActionAcronym,
-          TokenId theTokenId);
+          TerminalSymbol::Id theTerminalId);
 
     Entry(const Entry &) = default;
     Entry(Entry &&) = default;
@@ -85,7 +86,7 @@ class ScannerTable
 
     State myNextState;
     Action myAction;
-    TokenId myTokenId;
+    TerminalSymbol::Id myTerminalId;
   };
 
   /**
@@ -128,17 +129,6 @@ class ScannerTable
   void addColumn(const std::string &theCharacterClass) noexcept;
 
   /**
-   * Informs the table of a new reserved word.
-   *
-   * @param theTokenId
-   *          ID of the token to add
-   * @param theReservedWord
-   *          reserved word
-   */
-  void addReservedWord(TokenId theTokenId, std::string theReservedWord)
-    noexcept;
-
-  /**
    * Add the given entry to the driver table at the given location. If the
    * state doesn't exist yet, the table will be resized to create it. The column
    * number must be within the current number of columns (see addColumn).
@@ -154,25 +144,24 @@ class ScannerTable
     noexcept;
 
   /**
-   * Informs the table of a new token definition.
+   * Informs the table of a new terminal definition.
    *
-   * @param theTokenId
-   *          ID of the token to add
-   * @param theToken
-   *          token name
+   * @param theTerminal
+   *          terminal data
    */
-  void addToken(TokenId theTokenId, const std::string &theToken) noexcept;
+  void addTerminal(std::shared_ptr<Symbol> theTerminal) noexcept;
 
   /**
-   * Returns a new token code if the given token is a reserved word.
+   * Returns a new terminal code if the given terminal is a reserved word.
    *
-   * @param theTokenId
-   *          Id of current token
-   * @param theToken
-   *          actual token
-   * @return possibly updated token code
+   * @param theTerminalId
+   *          Id of current terminal
+   * @param theTokenString
+   *          actual token string from source
+   * @return possibly updated terminal code
    */
-  TokenId checkExceptions(TokenId theTokenId, std::string theToken)
+  TerminalSymbol::Id checkExceptions(TerminalSymbol::Id theTerminalId,
+                                     std::string theTokenString)
     const noexcept;
 
   /**
@@ -188,13 +177,11 @@ class ScannerTable
   Action getAction(State theCurrentState, char theCharacter) const;
 
   /**
-   * Returns the name of the given token Id
+   * Returns the special EOF symbol.
    *
-   * @param theTokenId
-   *          token id
-   * @return token name
+   * @return EOF symbol
    */
-  std::string getTokenName(TokenId theTokenId) const noexcept;
+  std::shared_ptr<Symbol> getEOF() const noexcept;
 
   /**
    * Returns the next state given the current state/character inputs.
@@ -209,25 +196,29 @@ class ScannerTable
   State getState(State theCurrentState, char theCharacter) const;
 
   /**
-   * Returns the token Id for the given state/character combination.
+   * Returns the terminal for the given state/character/token combination.
    *
    * @param theCurrentState
    *          current state
    * @param theCharacter
    *          current character
-   * @return token id
+   * @param theTokenString
+   *          token from source file, used for reserved word checking
+   * @return terminal id
    * @throws std::invalid_argument on invalid state
    */
-  TokenId lookupCode(State theCurrentState, char theCharacter) const;
+  std::shared_ptr<Symbol> lookupTerminal(State theCurrentState,
+                                         char theCharacter,
+                                         std::string theTokenString) const;
 
   /** Starting state */
   static constexpr uint32_t START_STATE = 0;
 
-  /** Built-in token id for whitespace */
-  static constexpr TokenId NO_TOKEN = 98;
+  /** Built-in terminal id for whitespace */
+  static constexpr TerminalSymbol::Id NO_TERMINAL = 98;
 
   /** End of file symbol. */
-  static constexpr TokenId EOF_SYMBOL = 99;
+  static constexpr TerminalSymbol::Id EOF_SYMBOL = 99;
 
   // ************************************************************
   // Protected
@@ -261,14 +252,17 @@ class ScannerTable
   /** Table columns character classes*/
   std::vector<std::string> myColumnCharacterClasses;
 
-  /** Reserved words. Token number, reserved word*/
-  std::map<TokenId, std::string> myReservedWords;
+  /** Reserved words. Reserved word, terminal info*/
+  std::map<std::string, TerminalSymbol::Id> myReservedWords;
 
   /** Scanner driver table */
   std::vector<std::vector<Entry>> myTable;
 
-  /** Tokens from the grammar file. Token number, token name*/
-  std::map<TokenId, std::string> myTokens;
+  /** Terminals from the grammar file. */
+  Symbol::SymbolSet myTerminals;
+
+  /** Map of terminal Ids to its terminal. */
+  std::map<TerminalSymbol::Id, std::shared_ptr<Symbol>> myTerminalIdMap;
 };
 
 #endif

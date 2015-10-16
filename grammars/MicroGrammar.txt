@@ -21,27 +21,27 @@ letter  digit   whitespace +       -       =       :       ,       ;       (    
 5:MNA:0 5:MNA:0 5:MNA:0    5:MNA:0 5:MNA:0 5:MNA:0 5:MNA:0 5:MNA:0 5:MNA:0 5:MNA:0 5:MNA:0 5:MNA:0 0:HNA:98 5:MNA:0
 E       E       E          E       E       0:HA:4  E       E       E       E       E       E       E        E
 -----
-<program> -> begin <stmt list> end
+<program> -> BeginSym <stmt list> EndSym
 <stmt list> -> <statement> <statement tail>
 <statement tail> -> <stmt list>
 <statement tail> ->
-<statement> -> Id := <expression> ;
-<statement> -> read ( <id list> ) ;
-<statement> -> write ( <expr list> ) ;
+<statement> -> Id AssignOp <expression> SemiColon
+<statement> -> ReadSym LParen <id list> RParen SemiColon
+<statement> -> WriteSym LParen <expr list> RParen SemiColon
 <id list> -> Id <id tail>
-<id tail> -> , <id list>
+<id tail> -> Comma <id list>
 <id tail> ->
 <expr list> -> <expression> <expression tail>
-<expression tail> -> , <expr list>
+<expression tail> -> Comma <expr list>
 <expression tail> ->
 <expression> -> <primary> <primary tail>
 <primary tail> -> <add op> <expression>
 <primary tail> ->
-<primary> -> ( <expression> )
+<primary> -> LParen <expression> RParen
 <primary> -> Id
 <primary> -> IntLiteral
-<add op> -> +
-<add op> -> -
+<add op> -> PlusOp
+<add op> -> MinusOp
 <system goal> -> <program> $
 -----
 <system goal>

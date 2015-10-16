@@ -23,7 +23,7 @@ class Production;
 
 /**
  * This class defines an LL(1) grammar, along with some extra information. It
- * contains definitions for the tokens, all productions and the start
+ * contains definitions for the symbols, all productions and the start
  * symbol.
  *
  * When a pointer (or set/vector of pointers) is returned, the pointers will
@@ -35,17 +35,17 @@ class Production;
  * File format:
  * Each section is delineated by a line of 5 hyphens.
  *
- * Section 1: Token definitons.
+ * Section 1: Terminal symbol definitons.
  * Name/number pairs. One per line. Numbers are unsigned.
  * Reserved words have 3 entries per line (last entry is the actual reserved
- * word. Two tokens are built in:
- * 98 - No token, used for returning whitespace or comments. Essentially any
- *      string of text in the source file which isn't a token
+ * word. Two terminals are built in:
+ * 98 - No terminal, used for returning whitespace or comments. Essentially any
+ *      string of text in the source file which isn't a terminal
  * 99 - EOF, end of file. There should be no need to use this in the grammar
  *      definition file
  *
  * Section 2: Scanner Table
- * Defines REs in a table to scan all tokens. First row is the column
+ * Defines REs in a table to scan all terminals. First row is the column
  * definition. Special definitions:
  *   letter (A-Za-z)
  *   digit (0-9)
@@ -53,8 +53,8 @@ class Production;
  *   EOL (\n)
  *   Other (any character not already specified)
  * Each entry is 3 sub-fields, colon separated
- *    next_state:action_acronym:token_id
- * next_state only applies to the "Move*" actions, token_id only applies
+ *    next_state:action_acronym:terminal_id
+ * next_state only applies to the "Move*" actions, terminal_id only applies
  * to "Halt*" actions.
  *
  * Section 3: Productions
@@ -150,6 +150,16 @@ class Grammar
   Symbol::SymbolSet getNonTerminalSymbols() const noexcept;
 
   /**
+   * Returns the production for the given number.
+   *
+   * @param theProductionNumber
+   *          production number (1-based)
+   * @return production
+   */
+  std::shared_ptr<Production> getProduction(uint32_t theProductionNumber)
+    const noexcept;
+
+  /**
    * Returns the productions of this grammar.
    *
    * @return grammar productions
@@ -203,16 +213,6 @@ class Grammar
   std::shared_ptr<Symbol> makeSymbol(const std::string &theSymbol);
 
   /**
-   * Returns a Symbol for the given terminal.
-   *
-   * @param theSymbol
-   *          terminal symbol
-   * @return Symbol
-   */
-  std::shared_ptr<Symbol> makeTerminal(
-    const std::string &theSymbol) noexcept;
-
-  /**
    * Reads the grammar file and populates this object from the contents
    * of said file.
    */
@@ -244,9 +244,12 @@ class Grammar
   void readStartSymbol();
 
   /**
-   * Reads the token definitions from the grammar file
+   * Reads the terminal definitions from the grammar file
    */
-  void readTokens();
+  void readTerminals();
+
+  /** Current file line number */
+  uint32_t myLineNumber = 0;
 
   /*
    * Meta elements: input file, EW Tracker
@@ -260,17 +263,8 @@ class Grammar
   /** File stream for reading grammar definition file. */
   std::ifstream myFile;
 
-  /*
-   * Parser elements: Tokens, reserved words & scanner table
-   */
-  /** Reserved words. Token number, reserved word*/
-  std::map<ScannerTable::TokenId, std::string> myReservedWords;
-
   /** Scanner table */
   ScannerTable &myScannerTable;
-
-  /** Tokens from the grammar file. Token number, token name*/
-  std::map<ScannerTable::TokenId, std::string> myTokens;
 
   /*
    * Grammar elements: Symbols (terminal & non-terminal), and productions.
@@ -289,5 +283,3 @@ class Grammar
 };
 
 #endif
-
-

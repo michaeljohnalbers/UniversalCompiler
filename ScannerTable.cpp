@@ -12,14 +12,19 @@
 #include <string>
 
 #include "ScannerTable.h"
+#include "TerminalSymbol.h"
+
+
+constexpr TerminalSymbol::Id ScannerTable::NO_TERMINAL;
+constexpr TerminalSymbol::Id ScannerTable::EOF_SYMBOL;
 
 //*******************************************************
-// ScannerTable::addColumn
+// ScannerTable::ScannerTable
 //*******************************************************
 ScannerTable::ScannerTable()
 {
-  addToken(EOF_SYMBOL, "EofSym");
-  addToken(NO_TOKEN, "NoToken");
+  addTerminal(std::make_shared<TerminalSymbol>("$", EOF_SYMBOL, ""));
+  addTerminal(std::make_shared<TerminalSymbol>("NoTerminal", NO_TERMINAL, ""));
 }
 
 //*******************************************************
@@ -31,23 +36,22 @@ void ScannerTable::addColumn(const std::string &theCharacterClass) noexcept
 }
 
 //*******************************************************
-// ScannerTable::addToken
+// ScannerTable::addTerminal
 //*******************************************************
-void ScannerTable::addToken(TokenId theTokenId, const std::string &theToken)
-  noexcept
+void ScannerTable::addTerminal(std::shared_ptr<Symbol> theTerminal) noexcept
 {
-  myTokens[theTokenId] = theToken;
-}
+  myTerminals.insert(theTerminal);
 
-//*******************************************************
-// ScannerTable::addReservedWord
-//*******************************************************
-void ScannerTable::addReservedWord(TokenId theTokenId,
-                                   std::string theReservedWord) noexcept
-{
-  std::transform(theReservedWord.begin(), theReservedWord.end(),
-                 theReservedWord.begin(), ::tolower);
-  myReservedWords[theTokenId] = theReservedWord;
+  TerminalSymbol *terminal = dynamic_cast<TerminalSymbol*>(theTerminal.get());
+  myTerminalIdMap[terminal->getId()] = theTerminal;
+
+  std::string reservedWord {terminal->getReservedWord()};
+  if (! reservedWord.empty())
+  {
+    std::transform(reservedWord.begin(), reservedWord.end(),
+                   reservedWord.begin(), ::tolower);
+    myReservedWords[reservedWord] = terminal->getId();
+  }
 }
 
 //*******************************************************
@@ -68,22 +72,20 @@ void ScannerTable::addTableEntry(State theState, uint32_t theColumn,
 //*******************************************************
 // ScannerTable::checkExceptions
 //*******************************************************
-ScannerTable::TokenId ScannerTable::checkExceptions(
-  TokenId theTokenId,
-  std::string theToken) const noexcept
+TerminalSymbol::Id ScannerTable::checkExceptions(
+  TerminalSymbol::Id theTerminalId,
+  std::string theTokenString) const noexcept
 {
-  std::transform(theToken.begin(), theToken.end(), theToken.begin(), ::tolower);
+  std::transform(theTokenString.begin(), theTokenString.end(),
+                 theTokenString.begin(), ::tolower);
 
-  for (auto reservedWordPair : myReservedWords)
+  try
   {
-    if (theToken == reservedWordPair.second)
-    {
-      theTokenId = reservedWordPair.first;
-      break;
-    }
+    theTerminalId = myReservedWords.at(theTokenString);
   }
+  catch(...){}
 
-  return theTokenId;
+  return theTerminalId;
 }
 
 //*******************************************************
@@ -123,6 +125,14 @@ uint32_t ScannerTable::getColumn(char theCharacter) const noexcept
 }
 
 //*******************************************************
+// ScannerTable::getEOF
+//*******************************************************
+std::shared_ptr<Symbol> ScannerTable::getEOF() const noexcept
+{
+  return myTerminalIdMap.at(EOF_SYMBOL);
+}
+
+//*******************************************************
 // ScannerTable::getState
 //*******************************************************
 ScannerTable::State ScannerTable::getState(State theCurrentState,
@@ -135,28 +145,35 @@ ScannerTable::State ScannerTable::getState(State theCurrentState,
 }
 
 //*******************************************************
-// ScannerTable::getTokenName
+// ScannerTable::lookupTerminal
 //*******************************************************
-std::string ScannerTable::getTokenName(TokenId theTokenId) const noexcept
-{
-  auto tokenIter = myTokens.find(theTokenId);
-  if (tokenIter != myTokens.end())
-  {
-    return tokenIter->second;
-  }
-  return "UnknownToken";
-}
-
-//*******************************************************
-// ScannerTable::lookupCode
-//*******************************************************
-ScannerTable::TokenId ScannerTable::lookupCode(State theCurrentState,
-                                               char theCharacter) const
+std::shared_ptr<Symbol> ScannerTable::lookupTerminal(
+  State theCurrentState,
+  char theCharacter,
+  std::string theTokenString) const
 {
   validateState(theCurrentState);
   auto column = getColumn(theCharacter);
 
-  return myTable[theCurrentState][column].myTokenId;
+  std::shared_ptr<Symbol> terminal;
+
+  auto terminalId = myTable[theCurrentState][column].myTerminalId;
+  try
+  {
+    terminal = myTerminalIdMap.at(terminalId);
+    std::transform(theTokenString.begin(), theTokenString.end(),
+                   theTokenString.begin(), ::tolower);
+    auto reservedWord = myReservedWords.find(theTokenString);
+    if (reservedWord != myReservedWords.end())
+    {
+      terminal = myTerminalIdMap.at(reservedWord->second);
+    }
+  }
+  catch (std::out_of_range &exception)
+  {
+  }
+
+  return terminal;
 }
 
 //*******************************************************
@@ -179,7 +196,7 @@ void ScannerTable::validateState(State theState) const
 ScannerTable::Entry::Entry() :
   myNextState(0),
   myAction(Action::Error),
-  myTokenId(0)
+  myTerminalId(0)
 {
 }
 
@@ -188,9 +205,9 @@ ScannerTable::Entry::Entry() :
 //*******************************************************
 ScannerTable::Entry::Entry(State theNextState,
                            const std::string &theActionAcronym,
-                           uint32_t theTokenId) :
+                           TerminalSymbol::Id theTerminalId) :
   myNextState(theNextState),
-  myTokenId(theTokenId)
+  myTerminalId(theTerminalId)
 {
   if ("E" == theActionAcronym)
   {
@@ -230,6 +247,6 @@ std::ostream& operator<<(std::ostream &theOS,
 {
   theOS << "Next State: " << theEntry.myNextState
         << ", Action: " << static_cast<int>(theEntry.myAction)
-        << ", Token Id: " << theEntry.myTokenId;
+        << ", Terminal Id: " << theEntry.myTerminalId;
   return theOS;
 }

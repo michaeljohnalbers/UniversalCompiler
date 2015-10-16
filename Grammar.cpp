@@ -54,6 +54,15 @@ Symbol::SymbolSet Grammar::getNonTerminalSymbols() const noexcept
 }
 
 //*******************************************************
+// Grammar::getProduction
+//*******************************************************
+std::shared_ptr<Production> Grammar::getProduction(uint32_t theProductionNumber)
+  const noexcept
+{
+  return myProductions[theProductionNumber-1];
+}
+
+//*******************************************************
 // Grammar::getProductions
 //*******************************************************
 std::vector<std::shared_ptr<Production>> Grammar::getProductions()
@@ -107,27 +116,30 @@ std::shared_ptr<Symbol> Grammar::makeSymbol(
   {
     return makeNonTerminal(theSymbol);
   }
-
-  return makeTerminal(theSymbol);
-}
-
-//*******************************************************
-// Grammar::makeTerminal
-//*******************************************************
-std::shared_ptr<Symbol> Grammar::makeTerminal(
-  const std::string &theSymbol) noexcept
-{
-  std::shared_ptr<Symbol> terminal(new TerminalSymbol(theSymbol));
-
-  Symbol::SymbolSet::iterator terminalIter =
-    myTerminalSymbols.find(terminal);
-  if (terminalIter == myTerminalSymbols.end())
+  else
   {
-    myTerminalSymbols.insert(terminal);
-    return terminal;
-  }
+    if ("$" == theSymbol)
+    {
+      return myScannerTable.getEOF();
+    }
+    else
+    {
+      for (auto terminal : myTerminalSymbols)
+      {
+        if (terminal->getName() == theSymbol)
+        {
+          return terminal;
+        }
+      }
+    }
 
-  return *terminalIter;
+    std::ostringstream error;
+    error << "Terminal symbol, \"" << theSymbol << "\" on line "
+          << myLineNumber << " is not a valid symbol. "
+          << "Check it against terminals defined at "
+          << "the top of the grammar definition file.";
+    throw std::out_of_range{error.str()};
+  }
 }
 
 //*******************************************************
@@ -135,7 +147,7 @@ std::shared_ptr<Symbol> Grammar::makeTerminal(
 //*******************************************************
 void Grammar::populateGrammar()
 {
-  readTokens();
+  readTerminals();
   readScannerTable();
   readProductions();
   readStartSymbol();
@@ -148,6 +160,7 @@ bool Grammar::readLine(std::string &theInputLine) noexcept
 {
   do
   {
+    ++myLineNumber;
     std::getline(myFile, theInputLine);
   } while (theInputLine.size() == 0 || theInputLine[0] == '#');
   return true;
@@ -199,6 +212,8 @@ void Grammar::readProductions()
 
     std::shared_ptr<Production> production{
       new Production(lhsSymbol, productionNumber)};
+    // getProduction assumes this is populated to line up with the value of
+    // productionNumber
     myProductions.push_back(production);
 
     // Read/discard the ->
@@ -261,16 +276,16 @@ void Grammar::readScannerTable()
         char ruleArray[rule.size()+1];
         std::strcpy(ruleArray, rule.c_str());
 
-        auto token = std::strtok(ruleArray, ":");
-        ScannerTable::State nextStep = std::strtoul(token, 0, 10);
+        auto terminal = std::strtok(ruleArray, ":");
+        ScannerTable::State nextStep = std::strtoul(terminal, 0, 10);
 
-        token = std::strtok(NULL, ":");
-        std::string action{token};
+        terminal = std::strtok(NULL, ":");
+        std::string action{terminal};
 
-        token = std::strtok(NULL, ":");
-        ScannerTable::TokenId tokenId = std::strtoul(token, 0, 10);
+        terminal = std::strtok(NULL, ":");
+        TerminalSymbol::Id terminalId = std::strtoul(terminal, 0, 10);
 
-        ScannerTable::Entry entry{nextStep, action, tokenId};
+        ScannerTable::Entry entry{nextStep, action, terminalId};
         myScannerTable.addTableEntry(stateNumber, column, entry);
       }
     }
@@ -303,27 +318,30 @@ void Grammar::readStartSymbol()
 }
 
 //*******************************************************
-// Grammar::readTokens
+// Grammar::readTerminals
 //*******************************************************
-void Grammar::readTokens()
+void Grammar::readTerminals()
 {
   std::string inputLine;
 
   while(readLine(inputLine) && inputLine != SECTION_DELIM)
   {
     std::stringstream splitter {inputLine};
-    ScannerTable::TokenId tokenId;
-    std::string tokenName;
-    splitter >> tokenId >> tokenName;
-    myTokens.emplace(std::make_pair(tokenId, tokenName));
-    myScannerTable.addToken(tokenId, tokenName);
+    TerminalSymbol::Id terminalId;
+    std::string terminalName;
+    std::string reservedWord;
+
+    splitter >> terminalId >> terminalName;
     if (!splitter.eof())
     {
-      std::string reservedWord;
       splitter >> reservedWord;
-      myReservedWords.emplace(std::make_pair(tokenId, reservedWord));
-      myScannerTable.addReservedWord(tokenId, reservedWord);
     }
+
+    auto terminal = std::make_shared<TerminalSymbol>(
+      terminalName, terminalId, reservedWord);
+
+    myTerminalSymbols.insert(terminal);
+    myScannerTable.addTerminal(terminal);
   }
 }
 
@@ -336,21 +354,7 @@ std::ostream& operator<<(std::ostream &theOS,
   theOS << "Grammar Definition" << std::endl
         << "==================" << std::endl
         << " Source File: " << theGrammar.myFileName << std::endl
-        << std::endl
-        << "Tokens" << std::endl
-        << "------" << std::endl;
-  for (auto tokenPair : theGrammar.myTokens)
-  {
-    auto tokenId = tokenPair.first;
-    theOS << std::setw(3) << tokenId << " " << tokenPair.second;
-    auto reservedWord = theGrammar.myReservedWords.find(tokenId);
-    if (reservedWord != theGrammar.myReservedWords.end())
-    {
-      theOS << " (" << reservedWord->second << ")";
-    }
-    theOS << std::endl;
-  }
-  theOS << std::endl;
+        << std::endl;
 
   theOS << "Productions" << std::endl
         << "-----------" << std::endl;
@@ -363,6 +367,7 @@ std::ostream& operator<<(std::ostream &theOS,
   theOS << "Start Symbol: " << *theGrammar.myStartSymbol << std::endl
         << std::endl;
 
+  TerminalSymbol::ourLongPrint = true;
   theOS << "Terminal Symbols" << std::endl
         << "----------------" << std::endl;
   for (auto symbol : theGrammar.myTerminalSymbols)
@@ -370,6 +375,7 @@ std::ostream& operator<<(std::ostream &theOS,
     theOS << *symbol << std::endl;
   }
   theOS << std::endl;
+  TerminalSymbol::ourLongPrint = false;
 
   theOS << "Non-Terminal Symbols" << std::endl
         << "--------------------" << std::endl;

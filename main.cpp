@@ -13,6 +13,7 @@
 #include "ErrorWarningTracker.h"
 #include "Grammar.h"
 #include "GrammarAnalyzer.h"
+#include "Parser.h"
 #include "PredictTable.h"
 #include "Scanner.h"
 #include "ScannerTable.h"
@@ -22,6 +23,7 @@ int main(int argc, char **argv)
   try
   {
     bool printGrammar = false;
+    bool printParse = false;
     bool printPredictTable = false;
     bool printTokens = false;
 
@@ -32,12 +34,14 @@ int main(int argc, char **argv)
       enum Option
       {
         Grammar,
+        Parse,
         PredictTable,
         Tokens,
       };
 
       static struct option options[] = {
         {"grammar", no_argument, 0, Grammar},
+        {"parse", no_argument, 0, Parse},
         {"predict-table", no_argument, 0, PredictTable},
         {"tokens", no_argument, 0, Tokens},
         {0, 0, 0,  0 }
@@ -52,6 +56,10 @@ int main(int argc, char **argv)
       switch (c) {
         case Grammar:
           printGrammar = true;
+          break;
+
+        case Parse:
+          printParse = true;
           break;
 
         case PredictTable:
@@ -95,17 +103,7 @@ int main(int argc, char **argv)
 
     Scanner scanner(sourceFile, scannerTable, ewTracker, printTokens);
 
-    // TODO: placeholder for printing tokens until parser is implemented
-    if (printTokens)
-    {
-      ScannerTable::TokenId tokenCode;
-      std::string token;
-      do
-      {
-        scanner.scan(token, tokenCode);
-      }
-      while (tokenCode != ScannerTable::EOF_SYMBOL);
-    }
+    Parser parser(scanner, grammar, predictTable, ewTracker, printParse);
   }
   catch (const std::exception &exception)
   {
@@ -116,7 +114,8 @@ int main(int argc, char **argv)
     std::cerr << "Usage: " << argv[0]
               << " [OPTIONS...] [grammer file] [source file]" << std::endl
               << " --tokens  print tokens in source file" << std::endl
-              << " --grammar print grammar information" << std::endl;
+              << " --grammar print grammar information" << std::endl
+              << " --predict-table print predict table" << std::endl;
     return 1;
   }
 

@@ -4,12 +4,14 @@ SRCS := ErrorWarningTracker.cpp \
         GrammarAnalyzer.cpp \
         Lambda.cpp \
         NonTerminalSymbol.cpp \
+        Parser.cpp \
         PredictTable.cpp \
         Production.cpp \
         Scanner.cpp \
         ScannerTable.cpp \
         Symbol.cpp \
         TerminalSymbol.cpp \
+        Token.cpp \
         main.cpp
 
 EXE := UniversalCompiler

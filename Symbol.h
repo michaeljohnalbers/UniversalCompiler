@@ -116,9 +116,18 @@ class Symbol
    *
    * @param theRHS
    *          rhs of this < rhs
-   * @param true if this < rhs
+   * @return true if this < rhs
    */
   virtual bool operator<(const Symbol &theRHS) const noexcept;
+
+  /**
+   * Equality operator.
+   *
+   * @param theRHS
+   *          rhs of this == rhs
+   * @return true if this == rhs, false otherwise
+   */
+  virtual bool operator==(const Symbol &theRHS) const noexcept;
 
   /**
    * Adds the given symbol to the first set.
