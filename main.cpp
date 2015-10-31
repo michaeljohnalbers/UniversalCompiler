@@ -17,11 +17,14 @@
 #include "PredictTable.h"
 #include "Scanner.h"
 #include "ScannerTable.h"
+#include "SemanticRoutines.h"
+#include "SemanticStack.h"
 
 int main(int argc, char **argv)
 {
   try
   {
+    bool printGeneration = false;
     bool printGrammar = false;
     bool printParse = false;
     bool printPredictTable = false;
@@ -33,6 +36,7 @@ int main(int argc, char **argv)
     {
       enum Option
       {
+        Generation,
         Grammar,
         Parse,
         PredictTable,
@@ -40,6 +44,7 @@ int main(int argc, char **argv)
       };
 
       static struct option options[] = {
+        {"generation", no_argument, 0, Generation},
         {"grammar", no_argument, 0, Grammar},
         {"parse", no_argument, 0, Parse},
         {"predict-table", no_argument, 0, PredictTable},
@@ -54,6 +59,10 @@ int main(int argc, char **argv)
         break;
 
       switch (c) {
+        case Generation:
+          printGeneration = true;
+          break;
+
         case Grammar:
           printGrammar = true;
           break;
@@ -75,13 +84,14 @@ int main(int argc, char **argv)
       }
     }
 
-    if (argc - optind != 2)
+    if (argc - optind != 3)
     {
-      throw std::runtime_error("No input files provided.");
+      throw std::runtime_error("No input and/or output files provided.");
     }
 
     std::string grammarFile(argv[optind + 0]);
     std::string sourceFile(argv[optind + 1]);
+    std::string generatedCodeFile(argv[optind + 2]);
 
     ErrorWarningTracker ewTracker(sourceFile);
     ScannerTable scannerTable;
@@ -103,7 +113,11 @@ int main(int argc, char **argv)
 
     Scanner scanner(sourceFile, scannerTable, ewTracker, printTokens);
 
-    Parser parser(scanner, grammar, predictTable, ewTracker, printParse);
+    SemanticStack semanticStack;
+    SemanticRoutines semanticRoutines(generatedCodeFile, semanticStack,
+                                      ewTracker);
+    Parser parser(scanner, grammar, predictTable, semanticStack,
+                  semanticRoutines, ewTracker, printParse, printGeneration);
   }
   catch (const std::exception &exception)
   {
@@ -112,10 +126,14 @@ int main(int argc, char **argv)
       std::cerr << argv[0] << ": error: " << exception.what() << std::endl;
     }
     std::cerr << "Usage: " << argv[0]
-              << " [OPTIONS...] [grammer file] [source file]" << std::endl
+              << " [OPTIONS...] [grammer file] [source file] "
+              << "[generated code file]" << std::endl
               << " --tokens  print tokens in source file" << std::endl
               << " --grammar print grammar information" << std::endl
-              << " --predict-table print predict table" << std::endl;
+              << " --parse   print each parse step" << std::endl
+              << " --predict-table print predict table" << std::endl
+              << " --generation print code generation steps (WARNING: Slow!)"
+              << std::endl;
     return 1;
   }
 

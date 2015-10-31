@@ -81,6 +81,16 @@ class GrammarAnalyzer
   friend std::ostream& operator<<(std::ostream &theOS,
                                   const GrammarAnalyzer &theAnalyzer);
 
+  /**
+   * Returns true if the given symbol is an actual grammar symbol
+   * (i.e., non-ActionSymbol and the like)
+   *
+   * @param theSymbol
+   *          symbol to check
+   * @return true if the given symbol is an actual grammar symbol
+   */
+  static bool isGrammarSymbol(std::shared_ptr<Symbol> theSymbol) noexcept;
+
   // ************************************************************
   // Protected
   // ************************************************************
