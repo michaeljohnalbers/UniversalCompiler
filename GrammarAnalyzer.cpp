@@ -7,7 +7,6 @@
 
 #include <cerrno>
 #include <iostream>
-#include <system_error>
 
 #include "GrammarAnalyzer.h"
 #include "Lambda.h"
@@ -81,16 +80,21 @@ Symbol::SymbolSet GrammarAnalyzer::computeFirst(
   {
     Symbol::SymbolSet symbolFirstSet;
     Symbol::SymbolList::size_type ii = 0;
-    do
+    bool symbolSetContainsLambda = true;
+    for (; ii < numberSymbols && symbolSetContainsLambda; ++ii)
     {
+      if (! isGrammarSymbol(theSymbols[ii]))
+      {
+        continue;
+      }
+
       symbolFirstSet = theSymbols[ii]->getFirstSet();
       firstSet.insert(symbolFirstSet.begin(), symbolFirstSet.end());
       firstSet.erase(lambda);
-      ++ii;
+      symbolSetContainsLambda = containsLambda(symbolFirstSet);
     }
-    while (ii < numberSymbols && containsLambda(symbolFirstSet));
 
-    if (ii == numberSymbols && containsLambda(symbolFirstSet))
+    if (ii == numberSymbols && symbolSetContainsLambda)
     {
       firstSet.insert(lambda);
     }
@@ -131,9 +135,11 @@ void GrammarAnalyzer::fillFirstSets() noexcept
   for (auto production : myProductions)
   {
     auto rhs = production->getRHS();
-    if (typeid(*rhs[0]) == typeid(TerminalSymbol))
+    uint32_t index = 0;
+    for (; index < rhs.size() && false == isGrammarSymbol(rhs[index]); ++index);
+    if (typeid(*rhs[index]) == typeid(TerminalSymbol))
     {
-      production->getLHS()->addToFirstSet(rhs[0]);
+      production->getLHS()->addToFirstSet(rhs[index]);
     }
   }
 
@@ -190,7 +196,10 @@ void GrammarAnalyzer::fillFollowSets() noexcept
           Symbol::SymbolList remainingRhs;
           for (auto jj = rhsIndex + 1; jj < rhs.size(); ++jj)
           {
-            remainingRhs.push_back(rhs[jj]);
+            if (isGrammarSymbol(rhs[jj]))
+            {
+              remainingRhs.push_back(rhs[jj]);
+            }
           }
 
           Symbol::SymbolSet firstSetOfRemaining{computeFirst(remainingRhs)};
@@ -251,6 +260,18 @@ void GrammarAnalyzer::generatePredictSets() noexcept
       production->addToPredictSet(symbol);
     }
   }
+}
+
+//*******************************************************
+// GrammarAnalyzer::isGrammarSymbol
+//*******************************************************
+bool GrammarAnalyzer::isGrammarSymbol(std::shared_ptr<Symbol> theSymbol)
+  noexcept
+{
+  auto *pointer = theSymbol.get();
+  return (typeid(*pointer) == typeid(TerminalSymbol) ||
+          typeid(*pointer) == typeid(NonTerminalSymbol) ||
+          typeid(*pointer) == typeid(Lambda));
 }
 
 //*******************************************************

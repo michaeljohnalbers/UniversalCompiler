@@ -15,6 +15,8 @@ class Grammar;
 class ErrorWarningTracker;
 class PredictTable;
 class Scanner;
+class SemanticRoutines;
+class SemanticStack;
 class Symbol;
 class Token;
 
@@ -52,16 +54,25 @@ class Parser
    *          language grammar
    * @param thePredictTable
    *          LL(1) predict table
+   * @param theSemanticStack
+   *          semantic stack for LL(1) grammar
+   * @param theSemanticRoutines
+   *          routines used for handling semantic data and code generation
    * @param theEWTracker
    *          error/warning tracker
    * @param thePrintParse
    *          print parse steps
+   * @param thePrintGeneration
+   *          print code generation steps
    */
   Parser(Scanner &theScanner,
          const Grammar &theGrammar,
          const PredictTable &thePredictTable,
+         SemanticStack &theSemanticStack,
+         SemanticRoutines &theSemanticRoutines,
          ErrorWarningTracker &theEWTracker,
-         bool thePrintParse);
+         bool thePrintParse,
+         bool thePrintGeneration);
 
   /**
    * Destructor
@@ -105,6 +116,11 @@ class Parser
                          std::stack<std::shared_ptr<Symbol>> theStack);
 
   /**
+   * Prints the state of parse/code generation.
+   */
+  void printState() noexcept;
+
+  /**
    * Prints all tokens remaining in the scanner.
    *
    * @param theOS
@@ -123,11 +139,20 @@ class Parser
   /** Production predict table */
   const PredictTable &myPredictTable;
 
+  /** Print code generation steps */
+  const bool myPrintGeneration;
+
   /** Print parse steps */
   const bool myPrintParse;
 
   /** Token scanner */
   Scanner &myScanner;
+
+  /** Semantic routines */
+  SemanticRoutines &mySemanticRoutines;
+
+  /** Semantic stack */
+  SemanticStack &mySemanticStack;
 
   /** Stack of expected symbols during parsing */
   std::stack<std::shared_ptr<Symbol>> myStack;

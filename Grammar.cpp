@@ -12,6 +12,7 @@
 #include <sstream>
 #include <stdexcept>
 
+#include "ActionSymbol.h"
 #include "ErrorWarningTracker.h"
 #include "Grammar.h"
 #include "Lambda.h"
@@ -115,6 +116,10 @@ std::shared_ptr<Symbol> Grammar::makeSymbol(
   if ('<' == theSymbol[0])
   {
     return makeNonTerminal(theSymbol);
+  }
+  else if ('#' == theSymbol[0])
+  {
+    return std::shared_ptr<Symbol>(new ActionSymbol(theSymbol));
   }
   else
   {
@@ -343,6 +348,9 @@ void Grammar::readTerminals()
     myTerminalSymbols.insert(terminal);
     myScannerTable.addTerminal(terminal);
   }
+
+  // Add built-in EOF terminal (don't add "NoTerminal")
+  myTerminalSymbols.insert(myScannerTable.getEOF());
 }
 
 //*******************************************************

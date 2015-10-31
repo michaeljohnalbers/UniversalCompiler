@@ -58,7 +58,8 @@ class Production;
  * to "Halt*" actions.
  *
  * Section 3: Productions
- * Standard form from class. Each symbol MUST have a space around it.
+ * Standard form from class. Each symbol MUST have a space around it. Action
+ * symbols cannot have any spaces in them and must start with a '#'
  *
  * Section 4: Start Symbol
  * Name of the start symbol, with the enclosing '<>'
@@ -72,7 +73,7 @@ class Production;
  * letter  digit   whitespace +       -       EOL      Other
  * 1:MA:0  2:MA:0  3:MNA:0    0:HA:3  4:MA:0  3:MNA:0  E
  * -----
- * <program> -> begin <stmt list> end
+ * <program> -> #Start begin <stmt list> end
  * <stmt list> -> <statement> <statement tail>
  * -----
  * <system goal>

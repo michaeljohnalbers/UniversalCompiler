@@ -1,5 +1,7 @@
 
-SRCS := ErrorWarningTracker.cpp \
+SRCS := ActionSymbol.cpp \
+        EOPSymbol.cpp \
+        ErrorWarningTracker.cpp \
         Grammar.cpp \
         GrammarAnalyzer.cpp \
         Lambda.cpp \
@@ -9,6 +11,9 @@ SRCS := ErrorWarningTracker.cpp \
         Production.cpp \
         Scanner.cpp \
         ScannerTable.cpp \
+        SemanticRecord.cpp \
+        SemanticRoutines.cpp \
+        SemanticStack.cpp \
         Symbol.cpp \
         TerminalSymbol.cpp \
         Token.cpp \
