@@ -18,16 +18,19 @@
 #include "ErrorWarningTracker.h"
 #include "SemanticRoutines.h"
 #include "SemanticStack.h"
+#include "SymbolTable.h"
 
 //*******************************************************
 // SemanticRoutines::SemanticRoutines
 //*******************************************************
 SemanticRoutines::SemanticRoutines(const std::string &theGeneratedCodeFileName,
                                    SemanticStack &theSemanticStack,
+                                   SymbolTable &theSymbolTable,
                                    ErrorWarningTracker &theEWTracker) :
   myEWTracker(theEWTracker),
   myGeneratedCodeFileName(theGeneratedCodeFileName),
-  mySemanticStack(theSemanticStack)
+  mySemanticStack(theSemanticStack),
+  mySymbolTable(theSymbolTable)
 {
 
   myGeneratedCodeFile.open(myGeneratedCodeFileName);
@@ -44,6 +47,8 @@ SemanticRoutines::SemanticRoutines(const std::string &theGeneratedCodeFileName,
 #define ADD_ROUTINE(x,y) mySemanticRoutines[#x] = &SemanticRoutines::y
   ADD_ROUTINE(assign, assign);
   ADD_ROUTINE(copy, copy);
+  ADD_ROUTINE(createscope, createScope);
+  ADD_ROUTINE(destroyscope, destroyScope);
   ADD_ROUTINE(geninfix, genInfix);
   ADD_ROUTINE(finish, finish);
   ADD_ROUTINE(processid, processId);
@@ -107,6 +112,16 @@ std::vector<std::string> SemanticRoutines::getCode() const noexcept
 }
 
 //*******************************************************
+// SemanticRoutines::getSymbols
+//*******************************************************
+std::vector<std::string> SemanticRoutines::getSymbols() const noexcept
+{
+  auto allSymbols = mySymbolTable.getAllSymbols();
+  std::sort(allSymbols.begin(), allSymbols.end(), std::greater<std::string>());
+  return allSymbols;
+}
+
+//*******************************************************
 // SemanticRoutines::getOperand
 //*******************************************************
 std::string SemanticRoutines::getOperand(std::string theOperand) noexcept
@@ -136,18 +151,6 @@ void SemanticRoutines::assign(std::vector<std::string> &theArguments) noexcept
 }
 
 //*******************************************************
-// SemanticRoutines::checkId
-//*******************************************************
-void SemanticRoutines::checkId(SemanticRecord &theIdentifier) noexcept
-{
-  if (false == lookUp(theIdentifier))
-  {
-    enter(theIdentifier);
-    generate("DECLARE", theIdentifier.extract(), "Integer");
-  }
-}
-
-//*******************************************************
 // SemanticRoutines::copy
 //*******************************************************
 void SemanticRoutines::copy(std::vector<std::string> &theArguments) noexcept
@@ -158,11 +161,28 @@ void SemanticRoutines::copy(std::vector<std::string> &theArguments) noexcept
 }
 
 //*******************************************************
-// SemanticRoutines::enter
+// SemanticRoutines::createScope
 //*******************************************************
-void SemanticRoutines::enter(SemanticRecord &theIdentifier) noexcept
+void SemanticRoutines::createScope(std::vector<std::string> &theArguments)
+  noexcept
 {
-  mySymbolTable.push_back(theIdentifier);
+  mySymbolTable.createNewScope();
+}
+
+//*******************************************************
+// SemanticRoutines::destroyScope
+//*******************************************************
+void SemanticRoutines::destroyScope(std::vector<std::string> &theArguments)
+  noexcept
+{
+  try
+  {
+    mySymbolTable.destroyCurrentScope();
+  }
+  catch (const std::exception &exception)
+  {
+    myEWTracker.reportError(exception.what());
+  }
 }
 
 //*******************************************************
@@ -248,8 +268,8 @@ void SemanticRoutines::genInfix(std::vector<std::string> &theArguments) noexcept
   auto &result = mySemanticStack.getRecordFromArgument(theArguments[3]);
 
   SemanticRecord temporary{getTemp()};
-  generate(op.extract(), getOperand(expr1.extract()), getOperand(expr2.extract()),
-           temporary.extract());
+  generate(op.extract(), getOperand(expr1.extract()),
+           getOperand(expr2.extract()), temporary.extract());
   result = temporary;
 }
 
@@ -274,17 +294,6 @@ std::string SemanticRoutines::getTupleCode() noexcept
 }
 
 //*******************************************************
-// SemanticRoutines::lookUp
-//*******************************************************
-bool SemanticRoutines::lookUp(SemanticRecord &theIdentifier) const noexcept
-{
-  auto location =
-    std::find(mySymbolTable.begin(), mySymbolTable.end(), theIdentifier);
-  bool found = (location != mySymbolTable.end());
-  return found;
-}
-
-//*******************************************************
 // SemanticRoutines::processId
 //*******************************************************
 void SemanticRoutines::processId(std::vector<std::string> &theArguments)
@@ -295,7 +304,13 @@ void SemanticRoutines::processId(std::vector<std::string> &theArguments)
   SemanticRecord newIdentifier(ExpressionRecord(ExpressionRecord::Kind::Id,
                                                 identifier.extract()));
 
-  checkId(newIdentifier);
+  SymbolTable::SymbolAttributes symbolAttributes;
+  bool alreadyInTable = mySymbolTable.add(identifier.extract(),
+                                          symbolAttributes);
+  if (! alreadyInTable)
+  {
+    generate("DECLARE", identifier.extract(), symbolAttributes.myType);
+  }
 
   auto &out = mySemanticStack.getRecordFromArgument(theArguments[0]);
 

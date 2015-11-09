@@ -15,6 +15,7 @@ SRCS := ActionSymbol.cpp \
         SemanticRoutines.cpp \
         SemanticStack.cpp \
         Symbol.cpp \
+        SymbolTable.cpp \
         TerminalSymbol.cpp \
         Token.cpp \
         main.cpp

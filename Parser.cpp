@@ -75,9 +75,9 @@ void Parser::parse()
   mySemanticStack.initialize();
   myStack.push(myGrammar.getStartSymbol());
 
-  printState();
-
   Token token{myScanner.scan()};
+
+  printState(token);
 
   while (myStack.size() > 0)
   {
@@ -181,7 +181,7 @@ void Parser::parse()
                 << std::endl;
     }
 
-    printState();
+    printState(token);
   }
 }
 
@@ -205,13 +205,15 @@ void Parser::printStack(std::ostream &theOS,
 //*******************************************************
 // Parser::printState
 //*******************************************************
-void Parser::printState() noexcept
+void Parser::printState(const Token &theLookAheadToken) noexcept
 {
   if (myPrintGeneration)
   {
     auto remainingTokens(myScanner.getRemainingTokens());
+    remainingTokens.insert(remainingTokens.begin(), theLookAheadToken);
     auto semanticStack(mySemanticStack.getStack());
     auto generatedCode(mySemanticRoutines.getCode());
+    auto allSymbols(mySemanticRoutines.getSymbols());
 
     // Bit of a hack to account for the fact that you cannot
     // iterate over a std::stack.
@@ -232,6 +234,7 @@ void Parser::printState() noexcept
     semanticIter++; // Bottom element is a placeholder (skip it)
     auto generatedIter = generatedCode.begin();
     auto parseIter = parseStack.begin();
+    auto symbolIter = allSymbols.begin();
 
     auto remainingTokensCheck = [&]()->bool
     {
@@ -249,23 +252,37 @@ void Parser::printState() noexcept
     {
       return parseIter != parseStack.end();
     };
+    auto remainingSymbolsCheck = [&]()->bool
+    {
+      return symbolIter != allSymbols.end();
+    };
     auto remainingData = [&]()->bool
     {
       bool remainingData = (remainingTokensCheck() ||
                             remainingSemanticCheck() ||
                             remainingParseCheck() ||
-                            remainingGeneratedCheck());
+                            remainingGeneratedCheck() ||
+                            remainingSymbolsCheck());
       return remainingData;
     };
 
     // Sized to fit GenInfix action symbol
     static const uint32_t WIDTH = 22;
 
-    auto printDivider = []()
-    {
-      for (int ii = 0; ii < 4; ++ii)
+    std::vector<std::string> columnNames =
       {
-        std::cout << std::setw(WIDTH+2) << std::setfill('-') << "";
+        "Remaining Tokens",
+        "Parse Stack",
+        "Semantic Stack",
+        "Symbol Table",
+        "Generated Code"
+      };
+
+    auto printDivider = [&]()
+    {
+      for (uint32_t ii = 0; ii < columnNames.size(); ++ii)
+      {
+        std::cout << std::setw(WIDTH+3) << std::setfill('-') << "";
       }
       std::cout << std::endl << std::setfill(' ');
     };
@@ -274,12 +291,17 @@ void Parser::printState() noexcept
     if (! printedHeader)
     {
       printedHeader = true;
-      std::cout << std::setw(WIDTH) << "Remaining Tokens" << " | "
-                << std::setw(WIDTH) << "Parse Stack" << " | "
-                << std::setw(WIDTH) << "Semantic Stack" << " | "
-                << std::setw(WIDTH) << "Generated Code" << std::endl;
+      for (uint32_t ii = 0; ii < columnNames.size(); ++ii)
+      {
+        std::cout << std::setw(WIDTH) << columnNames[ii];
+        if (ii < columnNames.size()-1)
+        {
+          std::cout << " | ";
+        }
+      }
+      std::cout << std::endl;
       printDivider();
-   }
+    }
 
     // Remaining Input, Parse stack, semantic stack, code
     while (remainingData())
@@ -321,6 +343,18 @@ void Parser::printState() noexcept
       {
         std::cout << std::setw(WIDTH) << semanticIter->extract();
         ++semanticIter;
+      }
+      else
+      {
+        std::cout << std::setw(WIDTH) << " ";
+      }
+      std::cout << " | ";
+
+      if (remainingSymbolsCheck())
+      {
+        std::cout << std::setw(WIDTH) << std::left << *symbolIter
+                  << std::right;
+        ++symbolIter;
       }
       else
       {

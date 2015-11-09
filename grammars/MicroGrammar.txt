@@ -21,8 +21,10 @@ letter  digit   whitespace +       -       =       :       ,       ;       (    
 5:MNA:0 5:MNA:0 5:MNA:0    5:MNA:0 5:MNA:0 5:MNA:0 5:MNA:0 5:MNA:0 5:MNA:0 5:MNA:0 5:MNA:0 5:MNA:0 0:HNA:98 5:MNA:0
 E       E       E          E       E       0:HA:4  E       E       E       E       E       E       E        E
 -----
-<program> -> #Start BeginSym <stmt list> EndSym
+<program> -> #Start <block>
+<block> -> BeginSym #CreateScope <stmt list> EndSym #DestroyScope
 <stmt list> -> <statement> <statement tail>
+<stmt list> -> <block> <statement tail>
 <statement tail> -> <stmt list>
 <statement tail> ->
 <statement> -> <ident> AssignOp <expression> SemiColon #Assign($1,$3)
