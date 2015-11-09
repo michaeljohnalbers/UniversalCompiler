@@ -19,6 +19,9 @@
 #include "ScannerTable.h"
 #include "SemanticRoutines.h"
 #include "SemanticStack.h"
+#include "SymbolTable.h"
+
+static void usage(char *theProgramName);
 
 int main(int argc, char **argv)
 {
@@ -38,6 +41,7 @@ int main(int argc, char **argv)
       {
         Generation,
         Grammar,
+        Help,
         Parse,
         PredictTable,
         Tokens,
@@ -46,6 +50,7 @@ int main(int argc, char **argv)
       static struct option options[] = {
         {"generation", no_argument, 0, Generation},
         {"grammar", no_argument, 0, Grammar},
+        {"help", no_argument, 0, Help},
         {"parse", no_argument, 0, Parse},
         {"predict-table", no_argument, 0, PredictTable},
         {"tokens", no_argument, 0, Tokens},
@@ -65,6 +70,11 @@ int main(int argc, char **argv)
 
         case Grammar:
           printGrammar = true;
+          break;
+
+        case Help:
+          usage(argv[0]);
+          std::exit(0);
           break;
 
         case Parse:
@@ -114,8 +124,9 @@ int main(int argc, char **argv)
     Scanner scanner(sourceFile, scannerTable, ewTracker, printTokens);
 
     SemanticStack semanticStack;
+    SymbolTable symbolTable;
     SemanticRoutines semanticRoutines(generatedCodeFile, semanticStack,
-                                      ewTracker);
+                                      symbolTable, ewTracker);
     Parser parser(scanner, grammar, predictTable, semanticStack,
                   semanticRoutines, ewTracker, printParse, printGeneration);
   }
@@ -125,17 +136,23 @@ int main(int argc, char **argv)
     {
       std::cerr << argv[0] << ": error: " << exception.what() << std::endl;
     }
-    std::cerr << "Usage: " << argv[0]
-              << " [OPTIONS...] [grammer file] [source file] "
-              << "[generated code file]" << std::endl
-              << " --tokens  print tokens in source file" << std::endl
-              << " --grammar print grammar information" << std::endl
-              << " --parse   print each parse step" << std::endl
-              << " --predict-table print predict table" << std::endl
-              << " --generation print code generation steps (WARNING: Slow!)"
-              << std::endl;
+    usage(argv[0]);
     return 1;
   }
 
   return 0;
+}
+
+void usage(char *theProgramName)
+{
+  std::cerr << "Usage: " << theProgramName
+            << " [OPTIONS...] [grammer file] [source file] "
+            << "[generated code file]" << std::endl
+            << " --tokens  print tokens in source file" << std::endl
+            << " --grammar print grammar information" << std::endl
+            << " --help print this help and exit" << std::endl
+            << " --parse   print each parse step" << std::endl
+            << " --predict-table print predict table" << std::endl
+            << " --generation print code generation steps (WARNING: Slow!)"
+            << std::endl;
 }

@@ -117,8 +117,11 @@ class Parser
 
   /**
    * Prints the state of parse/code generation.
+   *
+   * @param theLookAheadToken
+   *          look-ahead token
    */
-  void printState() noexcept;
+  void printState(const Token &theLookAheadToken) noexcept;
 
   /**
    * Prints all tokens remaining in the scanner.

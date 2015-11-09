@@ -19,6 +19,7 @@
 class ErrorWarningTracker;
 class SemanticStack;
 class Symbol;
+class SymbolTable;
 
 /**
  * All semantic routines are housed within this class, which interfaces
@@ -54,6 +55,8 @@ class SemanticRoutines
    *          file in which to write generated code
    * @param theSemanticStack
    *          semantic stack
+   * @param theSymbolTable
+   *          symbol table
    * @param theEWTracker
    *          error/warning tracker
    * @throws std::runtime_error
@@ -61,6 +64,7 @@ class SemanticRoutines
    */
   SemanticRoutines(const std::string &theGeneratedCodeFileName,
                    SemanticStack &theSemanticStack,
+                   SymbolTable &theSymbolTable,
                    ErrorWarningTracker &theEWTracker);
 
   /**
@@ -93,6 +97,13 @@ class SemanticRoutines
    */
   std::vector<std::string> getCode() const noexcept;
 
+  /**
+   * Returns all symbols in the symbol table.
+   *
+   * @return symbols sorted by scope level
+   */
+  std::vector<std::string> getSymbols() const noexcept;
+
   // ************************************************************
   // Protected
   // ************************************************************
@@ -117,6 +128,8 @@ class SemanticRoutines
 #define ACTION_SYMBOL_ROUTINE(x) void x(std::vector<std::string>&) noexcept
   ACTION_SYMBOL_ROUTINE(assign);
   ACTION_SYMBOL_ROUTINE(copy);
+  ACTION_SYMBOL_ROUTINE(createScope);
+  ACTION_SYMBOL_ROUTINE(destroyScope);
   ACTION_SYMBOL_ROUTINE(genInfix);
   ACTION_SYMBOL_ROUTINE(finish);
   ACTION_SYMBOL_ROUTINE(processId);
@@ -126,23 +139,6 @@ class SemanticRoutines
   ACTION_SYMBOL_ROUTINE(start);
   ACTION_SYMBOL_ROUTINE(writeExpr);
 #undef ACTION_SYMBOL_ROUTINE
-
-  /**
-   * Checks if the given identifier is in the symbol table. If not, adds it
-   * and generates code to declare it.
-   *
-   * @param theIdentifier
-   *          identifer name
-   */
-  void checkId(SemanticRecord &theIdentifier) noexcept;
-
-  /**
-   * Adds the given identifer to the symbol table.
-   *
-   * @param theIdentifier
-   *          identifier to add
-   */
-  void enter(SemanticRecord &theIdentifier) noexcept;
 
   /**
    * Writes the instruction to the generated code file.
@@ -218,15 +214,6 @@ class SemanticRoutines
    */
   std::string getTupleCode() noexcept;
 
-  /**
-   * Check if the identifier is in the symbol table.
-   *
-   * @param theIdentifier
-   *          identifier to check
-   * @param true if identifier is in the symbol table
-   */
-  bool lookUp(SemanticRecord &theIdentifier) const noexcept;
-
   /** Error/Warning tracker */
   ErrorWarningTracker &myEWTracker;
 
@@ -248,8 +235,8 @@ class SemanticRoutines
   /** Semantic stack. */
   SemanticStack &mySemanticStack;
 
-  /** Known symbols */
-  std::vector<SemanticRecord> mySymbolTable;
+  /** Symbol table. */
+  SymbolTable &mySymbolTable;
 
   /** Tuple number */
   uint32_t myTupleNumber = 0;
